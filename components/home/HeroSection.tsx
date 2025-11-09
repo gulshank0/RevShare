@@ -20,7 +20,7 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/marketplace">
               <Button className="youtube-button text-xl px-8 py-3 h-auto">
-                Browse Opportunities
+                Browse Opportunities with Searches
               </Button>
             </Link>
             <Link href="/creator/onboard">
