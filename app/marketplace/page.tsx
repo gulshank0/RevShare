@@ -111,7 +111,7 @@ export default function MarketplacePage() {
             <div key={offering.id} className="youtube-card group">
               {/* Thumbnail */}
               <div className="relative aspect-video bg-zinc-800 rounded-t-lg overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-red-600/20 to-zinc-800 flex items-center justify-center">
+                <div className="absolute inset-0 bg-linear-to-br from-red-600/20 to-zinc-800 flex items-center justify-center">
                   <Play className="w-12 h-12 text-white/80" />
                 </div>
                 <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -122,7 +122,7 @@ export default function MarketplacePage() {
               {/* Content */}
               <div className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shrink-0">
                     <span className="text-white font-bold text-sm">
                       {offering.channel.channelName[0]?.toUpperCase()}
                     </span>

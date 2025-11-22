@@ -5,17 +5,19 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Users, Clock, ArrowUpRight } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, Clock, ArrowUpRight, Wallet, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 export default function InvestorDashboard() {
   const { data: session } = useSession();
   const [investments, setInvestments] = useState<any[]>([]);
   const [summary, setSummary] = useState<any>(null);
+  const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchInvestments();
+    fetchWallet();
   }, []);
 
   const fetchInvestments = async () => {
@@ -30,6 +32,18 @@ export default function InvestorDashboard() {
       console.error('Failed to fetch investments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWallet = async () => {
+    try {
+      const res = await fetch('/api/wallet');
+      const data = await res.json();
+      if (data.success) {
+        setWallet(data.wallet);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wallet:', error);
     }
   };
 
@@ -62,6 +76,52 @@ export default function InvestorDashboard() {
               Browse Marketplace
             </Button>
           </Link>
+        </div>
+
+        {/* Wallet Balance Card */}
+        <div className="youtube-card bg-gradient-to-br from-red-600/20 to-red-600/5 border-red-600/20">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 bg-red-600/20 rounded-full flex items-center justify-center">
+                  <Wallet className="h-7 w-7 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium text-gray-400">Portfolio Wallet</h3>
+                  <p className="text-3xl font-bold text-white mt-1">
+                    ${wallet?.balance?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+                  </p>
+                </div>
+              </div>
+              <Link href="/payment">
+                <Button className="youtube-button text-lg px-6 py-3 h-auto">
+                  <CreditCard className="h-5 w-5 mr-2" />
+                  Add Funds
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-3 gap-4 pt-4 border-t border-red-600/20">
+              <div>
+                <p className="text-sm text-gray-400">Total Deposited</p>
+                <p className="text-lg font-semibold text-white mt-1">
+                  ${wallet?.totalDeposited?.toLocaleString() || '0'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Total Invested</p>
+                <p className="text-lg font-semibold text-white mt-1">
+                  ${wallet?.totalInvested?.toLocaleString() || '0'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-400">Available Balance</p>
+                <p className="text-lg font-semibold text-green-400 mt-1">
+                  ${wallet?.balance?.toLocaleString() || '0'}
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -119,6 +179,45 @@ export default function InvestorDashboard() {
                 : 0}
               %
             </div>
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="youtube-card p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center">
+                <Wallet className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Add Funds to Portfolio</h3>
+                <p className="text-sm text-gray-400">Deposit money to invest in creator channels</p>
+              </div>
+            </div>
+            <Link href="/payment">
+              <Button className="youtube-button w-full text-lg py-6 h-auto">
+                <Wallet className="h-5 w-5 mr-2" />
+                Add Funds
+              </Button>
+            </Link>
+          </div>
+
+          <div className="youtube-card p-6">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-red-600/10 rounded-full flex items-center justify-center">
+                <ArrowUpRight className="h-6 w-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white">Discover Opportunities</h3>
+                <p className="text-sm text-gray-400">Browse and invest in creator channels</p>
+              </div>
+            </div>
+            <Link href="/marketplace">
+              <Button className="youtube-button w-full text-lg py-6 h-auto">
+                <ArrowUpRight className="h-5 w-5 mr-2" />
+                Browse Marketplace
+              </Button>
+            </Link>
           </div>
         </div>
 

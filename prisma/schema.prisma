@@ -28,6 +28,7 @@ model User {
   channels      Channel[]
   investments   Investment[]
   transactions  Transaction[]
+  wallet        Wallet?
   
   @@map("users")
 }
@@ -164,6 +165,22 @@ model Transaction {
   @@map("transactions")
 }
 
+model Wallet {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  balance       Float    @default(0)
+  totalDeposited Float   @default(0)
+  totalInvested Float    @default(0)
+  totalWithdrawn Float   @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("wallets")
+}
+
 // Enums
 enum UserRole {
   CREATOR
@@ -218,4 +235,6 @@ enum TransactionType {
   PAYOUT
   REFUND
   FEE
+  DEPOSIT
+  WITHDRAWAL
 }

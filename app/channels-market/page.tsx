@@ -344,11 +344,11 @@ export default function ChannelsMarketPage() {
                               {formatCurrency(selectedChannelData.currentValue)}
                             </span>
                             <Badge
-                              className={
-                                selectedChannelData.changePercent >= 0
-                                  ? 'bg-green-600/20 text-green-400 border-green-600/30'
-                                  : 'bg-red-600/20 text-red-400 border-red-600/30'
-                              }
+                              className={`${
+                              selectedChannelData.changePercent >= 0
+                                ? 'bg-green-600/20 text-green-400 border-green-600/30 hover:bg-black'
+                                : 'bg-red-600/20 text-red-400 border-red-600/30 hover:bg-black'
+                              } transition-colors`}
                             >
                               {selectedChannelData.changePercent >= 0 ? '+' : ''}
                               {selectedChannelData.changePercent.toFixed(2)}%
@@ -375,7 +375,7 @@ export default function ChannelsMarketPage() {
                         />
                         <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `$${value}`} />
                         <Tooltip
-                          contentStyle={{ backgroundColor: '#18181b', border: '1px solid #3f3f46', borderRadius: '8px' }}
+                          contentStyle={{ backgroundColor: '#000000', border: '1px solid #3f3f46', borderRadius: '8px' }}
                           labelStyle={{ color: '#a1a1aa' }}
                           itemStyle={{ color: '#ffffff' }}
                           formatter={(value: any) => [formatCurrency(value), 'Value']}

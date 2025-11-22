@@ -41,18 +41,19 @@ export default function Navbar() {
           >
             Marketplace
           </Link>
-          <Link
-            href="/channels-market"
-            className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
-          >
-            Channels-Market
-          </Link>
+         
           <Link 
             href="/search" 
             className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors flex items-center space-x-2"
           >
             <span>Search Your Creator</span>
             <Search className="w-5 h-5" />
+          </Link>
+ <Link
+            href="/channels-market"
+            className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
+          >
+            Channels Market
           </Link>
           {session?.user?.role === 'CREATOR' && (
             <Link 
