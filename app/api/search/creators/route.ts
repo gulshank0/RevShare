@@ -68,6 +68,9 @@ export async function GET(request: NextRequest) {
       bannerImageUrl: channel.brandingSettings?.image?.bannerExternalUrl || ''
     })) || [];
 
+    // Sort creators by subscriber count in descending order (highest first)
+    creators.sort((a, b) => b.subscriberCount - a.subscriberCount);
+
     return NextResponse.json({ creators });
   } catch (error) {
     console.error('YouTube search error:', error);

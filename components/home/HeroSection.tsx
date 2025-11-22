@@ -19,12 +19,12 @@ export function HeroSection() {
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/marketplace">
-              <Button className="youtube-button text-xl px-8 py-3 h-auto">
+              <Button className="youtube-button text-xl px-8 py-3 h-auto cursor-pointer">
                 Browse Opportunities
               </Button>
             </Link>
             <Link href="/creator/onboard">
-              <Button className="youtube-button-outline text-xl px-8 py-3 h-auto bg-zinc-600 hover:bg-zinc-500">
+              <Button className="youtube-button-outline text-xl px-8 py-3 h-auto bg-zinc-600 hover:bg-zinc-500 cursor-pointer">
                 List Your Channel
               </Button>
             </Link>

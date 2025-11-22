@@ -233,9 +233,9 @@ export default function SearchPage() {
                           variant="outline" 
                           size="sm" 
                           onClick={() => openChannel(creator)}
-                          className="flex-1 youtube-button-outline border-zinc-600 text-gray-300 hover:bg-zinc-800"
+                          className="flex-1 border-zinc-600 text-gray-900 hover:bg-zinc-800 hover:text-gray-300"
                         >
-                          <ExternalLink className="w-4 h-4 mr-1" />
+                          <ExternalLink className="w-4 h-4 mr-1 text-gray-900 hover:text-gray-300" />
                           View Channel
                         </Button>
                         <Button 
