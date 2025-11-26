@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Youtube, DollarSign, Users, TrendingUp, Plus, BarChart3, Video } from 'lucide-react';
+import { Youtube, IndianRupee, Users, TrendingUp, Plus, BarChart3, Video } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreatorDashboard() {
@@ -80,9 +80,9 @@ export default function CreatorDashboard() {
           <div className="youtube-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-gray-400">Total Raised</h3>
-              <DollarSign className="h-5 w-5 text-green-400" />
+              <IndianRupee className="h-5 w-5 text-green-400" />
             </div>
-            <div className="text-2xl font-bold text-white">${calculateTotalRaised().toLocaleString()}</div>
+            <div className="text-2xl font-bold text-white">₹{calculateTotalRaised().toLocaleString('en-IN')}</div>
           </div>
 
           <div className="youtube-card p-6">
@@ -217,7 +217,7 @@ export default function CreatorDashboard() {
                       <div className="text-right">
                         <p className="text-sm text-gray-400">Total Raised</p>
                         <p className="text-xl font-bold text-green-400">
-                          ${totalRaised.toLocaleString()}
+                          ₹{totalRaised.toLocaleString('en-IN')}
                         </p>
                       </div>
                     </div>

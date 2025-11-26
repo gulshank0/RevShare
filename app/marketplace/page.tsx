@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { TrendingUp, Users, DollarSign, Clock, Play, Filter } from "lucide-react";
+import { TrendingUp, Users, IndianRupee, Clock, Play, Filter } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -144,8 +144,8 @@ export default function MarketplacePage() {
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-1">
-                    <DollarSign className="w-4 h-4 text-green-400" />
-                    <span className="text-white">${offering.pricePerShare}/share</span>
+                    <IndianRupee className="w-4 h-4 text-green-400" />
+                    <span className="text-white">₹{offering.pricePerShare}/share</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4 text-blue-400" />

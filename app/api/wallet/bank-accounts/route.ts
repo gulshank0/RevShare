@@ -9,25 +9,16 @@ function hashAccountNumber(accountNumber: string): string {
   return crypto.createHash('sha256').update(accountNumber + process.env.ENCRYPTION_KEY).digest('hex');
 }
 
-// Helper to validate routing number (basic US check)
-function isValidRoutingNumber(routingNumber: string): boolean {
-  if (!/^\d{9}$/.test(routingNumber)) return false;
-  
-  // ABA routing number checksum validation
-  const digits = routingNumber.split('').map(Number);
-  const checksum = (
-    3 * (digits[0] + digits[3] + digits[6]) +
-    7 * (digits[1] + digits[4] + digits[7]) +
-    1 * (digits[2] + digits[5] + digits[8])
-  ) % 10;
-  
-  return checksum === 0;
+// Helper to validate IFSC code (Indian Financial System Code)
+function isValidIFSCCode(ifscCode: string): boolean {
+  // IFSC code is 11 characters: first 4 are bank code (alpha), 5th is 0 (reserved), last 6 are branch code (alphanumeric)
+  return /^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifscCode.toUpperCase());
 }
 
-// Helper to validate account number
+// Helper to validate Indian bank account number
 function isValidAccountNumber(accountNumber: string): boolean {
-  // US bank account numbers are typically 4-17 digits
-  return /^\d{4,17}$/.test(accountNumber);
+  // Indian bank account numbers are typically 9-18 digits
+  return /^\d{9,18}$/.test(accountNumber);
 }
 
 // POST - Add a new bank account
@@ -65,7 +56,7 @@ export async function POST(req: NextRequest) {
       accountHolderName, 
       accountType, 
       bankName, 
-      routingNumber, 
+      routingNumber, // This is now IFSC code
       accountNumber,
       setAsDefault 
     } = await req.json();
@@ -78,18 +69,18 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Validate routing number
-    if (!isValidRoutingNumber(routingNumber)) {
+    // Validate IFSC code
+    if (!isValidIFSCCode(routingNumber)) {
       return NextResponse.json({ 
-        error: 'Invalid routing number',
-        code: 'INVALID_ROUTING'
+        error: 'Invalid IFSC code. Format should be like SBIN0001234',
+        code: 'INVALID_IFSC'
       }, { status: 400 });
     }
 
     // Validate account number
     if (!isValidAccountNumber(accountNumber)) {
       return NextResponse.json({ 
-        error: 'Invalid account number',
+        error: 'Invalid account number. Should be 9-18 digits',
         code: 'INVALID_ACCOUNT'
       }, { status: 400 });
     }

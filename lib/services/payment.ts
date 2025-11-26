@@ -19,8 +19,8 @@ export class PaymentService {
   async createWalletDepositIntent(amount: number, userId: string, ipAddress?: string, userAgent?: string) {
     try {
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'usd',
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: 'inr',
         metadata: {
           userId,
           type: 'wallet_deposit',
@@ -389,16 +389,16 @@ export class PaymentService {
 
       const availableBalance = wallet.balance - wallet.lockedBalance;
       if (availableBalance < totalAmount) {
-        throw new Error(`Insufficient wallet balance. Available: $${availableBalance.toFixed(2)}`);
+        throw new Error(`Insufficient wallet balance. Available: ₹${availableBalance.toLocaleString('en-IN')}`);
       }
 
       // Check min/max investment
       if (totalAmount < offering.minInvestment) {
-        throw new Error(`Minimum investment is $${offering.minInvestment}`);
+        throw new Error(`Minimum investment is ₹${offering.minInvestment.toLocaleString('en-IN')}`);
       }
 
       if (offering.maxInvestment && totalAmount > offering.maxInvestment) {
-        throw new Error(`Maximum investment is $${offering.maxInvestment}`);
+        throw new Error(`Maximum investment is ₹${offering.maxInvestment.toLocaleString('en-IN')}`);
       }
 
       // Create investment and update wallet in a transaction
@@ -469,7 +469,7 @@ export class PaymentService {
             debit: totalAmount,
             credit: 0,
             balance: newBalance,
-            description: `Investment: ${offering.channel.channelName} (${shares} shares @ $${offering.pricePerShare})`,
+            description: `Investment: ${offering.channel.channelName} (${shares} shares @ ₹${offering.pricePerShare})`,
             referenceType: 'investment',
             referenceId: investment.id,
             metadata: {
@@ -585,8 +585,8 @@ export class PaymentService {
   async createPaymentIntent(amount: number, userId: string, offeringId: string, investmentId: string) {
     try {
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: 'usd',
+        amount: Math.round(amount * 100), // Convert to paise
+        currency: 'inr',
         metadata: {
           userId,
           offeringId,
@@ -692,7 +692,7 @@ export class PaymentService {
       // Create Stripe transfer (requires connected accounts for creators)
       const transfer = await stripe.transfers.create({
         amount: Math.round(amount * 100),
-        currency: 'usd',
+        currency: 'inr',
         destination: investment.investor.id, // Would be connected account ID
         metadata: {
           investmentId,

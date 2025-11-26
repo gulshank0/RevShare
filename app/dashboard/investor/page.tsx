@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { DollarSign, TrendingUp, Users, Clock, ArrowUpRight, Wallet, CreditCard } from 'lucide-react';
+import { IndianRupee, TrendingUp, Users, Clock, ArrowUpRight, Wallet, CreditCard } from 'lucide-react';
 import Link from 'next/link';
 
 export default function InvestorDashboard() {
@@ -105,19 +105,19 @@ export default function InvestorDashboard() {
               <div>
                 <p className="text-sm text-gray-400">Total Deposited</p>
                 <p className="text-lg font-semibold text-white mt-1">
-                  ${wallet?.totalDeposited?.toLocaleString() || '0'}
+                  ₹{wallet?.totalDeposited?.toLocaleString('en-IN') || '0'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-400">Total Invested</p>
                 <p className="text-lg font-semibold text-white mt-1">
-                  ${wallet?.totalInvested?.toLocaleString() || '0'}
+                  ₹{wallet?.totalInvested?.toLocaleString('en-IN') || '0'}
                 </p>
               </div>
               <div>
                 <p className="text-sm text-gray-400">Available Balance</p>
                 <p className="text-lg font-semibold text-green-400 mt-1">
-                  ${wallet?.balance?.toLocaleString() || '0'}
+                  ₹{wallet?.balance?.toLocaleString('en-IN') || '0'}
                 </p>
               </div>
             </div>
@@ -130,10 +130,10 @@ export default function InvestorDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-medium text-gray-400">Total Invested</h3>
               <div className="w-10 h-10 bg-red-600/10 rounded-full flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-red-600" />
+                <IndianRupee className="h-5 w-5 text-red-600" />
               </div>
             </div>
-            <div className="text-2xl font-bold text-white">${summary?.totalInvested?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold text-white">₹{summary?.totalInvested?.toLocaleString('en-IN') || 0}</div>
           </div>
 
           <div className="youtube-card p-6">
@@ -144,7 +144,7 @@ export default function InvestorDashboard() {
               </div>
             </div>
             <div className="text-2xl font-bold text-green-400">
-              ${summary?.totalReturns?.toLocaleString() || 0}
+              ₹{summary?.totalReturns?.toLocaleString('en-IN') || 0}
             </div>
             <p className="text-xs text-gray-500 mt-1">
               {summary?.totalInvested > 0
@@ -173,7 +173,7 @@ export default function InvestorDashboard() {
             <div className="text-2xl font-bold text-white">
               {investments.length > 0
                 ? (
-                    investments.reduce((sum, inv) => sum + parseFloat(calculateROI(inv)), 0) /
+                    investments.reduce((sum, inv) => sum + Number.parseFloat(calculateROI(inv)), 0) /
                     investments.length
                   ).toFixed(2)
                 : 0}
@@ -262,7 +262,7 @@ export default function InvestorDashboard() {
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Invested</p>
-                        <p className="font-semibold text-white">${investment.totalAmount.toLocaleString()}</p>
+                        <p className="font-semibold text-white">₹{investment.totalAmount.toLocaleString('en-IN')}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500">Returns</p>
@@ -315,7 +315,7 @@ export default function InvestorDashboard() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-semibold text-green-400">${payout.amount.toFixed(2)}</p>
+                        <p className="font-semibold text-green-400">₹{payout.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                         <Badge 
                           variant={payout.status === 'COMPLETED' ? 'default' : 'secondary'}
                           className={payout.status === 'COMPLETED' ? 'bg-red-600 text-white' : 'bg-zinc-600 text-gray-300'}

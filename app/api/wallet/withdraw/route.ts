@@ -4,10 +4,10 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
 import { headers } from 'next/headers';
 
-// Withdrawal fee percentage (e.g., 1.5%)
+// Withdrawal processing fee
 const WITHDRAWAL_FEE_PERCENT = 1.5;
-const MIN_WITHDRAWAL = 25;
-const MAX_WITHDRAWAL = 50000;
+const MIN_WITHDRAWAL = 50;
+const MAX_WITHDRAWAL = 5000000;
 
 // POST - Request a withdrawal
 export async function POST(req: NextRequest) {
@@ -55,14 +55,14 @@ export async function POST(req: NextRequest) {
 
     if (amount < MIN_WITHDRAWAL) {
       return NextResponse.json({ 
-        error: `Minimum withdrawal is $${MIN_WITHDRAWAL}`,
+        error: `Minimum withdrawal is ₹${MIN_WITHDRAWAL.toLocaleString('en-IN')}`,
         code: 'MIN_AMOUNT'
       }, { status: 400 });
     }
 
     if (amount > MAX_WITHDRAWAL) {
       return NextResponse.json({ 
-        error: `Maximum withdrawal is $${MAX_WITHDRAWAL}`,
+        error: `Maximum withdrawal is ₹${MAX_WITHDRAWAL.toLocaleString('en-IN')}`,
         code: 'MAX_AMOUNT'
       }, { status: 400 });
     }

@@ -30,14 +30,14 @@ export default function PaymentPage() {
 
     const amount = Number.parseFloat(depositAmount);
 
-    if (amount < 10) {
-      setError('Minimum deposit is $10');
+    if (amount < 50) {
+      setError('Minimum deposit is ₹50');
       setLoading(false);
       return;
     }
 
-    if (amount > 100000) {
-      setError('Maximum deposit is $100,000');
+    if (amount > 10000000) {
+      setError('Maximum deposit is ₹1,00,00,000');
       setLoading(false);
       return;
     }
@@ -93,19 +93,19 @@ export default function PaymentPage() {
               <form onSubmit={handleDepositSubmit} className="space-y-6">
                 <div>
                   <label htmlFor="amount" className="block text-sm font-medium text-gray-400 mb-2">
-                    Deposit Amount (USD)
+                    Deposit Amount (INR)
                   </label>
                   <div className="relative">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">
-                      $
+                      ₹
                     </span>
                     <Input
                       id="amount"
                       type="number"
-                      min="10"
-                      max="100000"
-                      step="0.01"
-                      placeholder="1000"
+                      min="50"
+                      max="10000000"
+                      step="1"
+                      placeholder="5000"
                       value={depositAmount}
                       onChange={(e) => setDepositAmount(e.target.value)}
                       className="pl-8 bg-zinc-800 border-zinc-700 text-white text-lg h-14"
@@ -113,7 +113,7 @@ export default function PaymentPage() {
                     />
                   </div>
                   <p className="text-xs text-gray-500 mt-2">
-                    Minimum: $10 • Maximum: $100,000
+                    Minimum: ₹50 • Maximum: ₹1,00,00,000
                   </p>
                 </div>
 
@@ -127,17 +127,17 @@ export default function PaymentPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Deposit Amount</span>
                     <span className="text-white font-medium">
-                      ${depositAmount ? Number.parseFloat(depositAmount).toLocaleString() : '0.00'}
+                      ₹{depositAmount ? Number.parseFloat(depositAmount).toLocaleString('en-IN') : '0.00'}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Processing Fee</span>
-                    <span className="text-white font-medium">$0.00</span>
+                    <span className="text-white font-medium">₹0.00</span>
                   </div>
                   <div className="border-t border-zinc-700 pt-2 flex justify-between">
                     <span className="text-white font-semibold">Total</span>
                     <span className="text-white font-semibold text-lg">
-                      ${depositAmount ? Number.parseFloat(depositAmount).toLocaleString() : '0.00'}
+                      ₹{depositAmount ? Number.parseFloat(depositAmount).toLocaleString('en-IN') : '0.00'}
                     </span>
                   </div>
                 </div>

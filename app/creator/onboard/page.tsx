@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Video, DollarSign, Users, Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Video, IndianRupee, Users, Shield, AlertCircle, Loader2 } from 'lucide-react';
 
 interface StepData {
   kycCompleted: boolean;
@@ -274,7 +274,7 @@ export default function CreatorOnboardPage() {
       id: 3,
       title: 'Revenue Share Setup',
       description: 'Configure your investment offering details',
-      icon: DollarSign,
+      icon: IndianRupee,
       status: getStepStatus(3)
     },
     {
@@ -721,7 +721,7 @@ export default function CreatorOnboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Price Per Share ($) *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Price Per Share (₹) *</label>
                   <input
                     type="number"
                     required
@@ -732,7 +732,7 @@ export default function CreatorOnboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Minimum Investment ($) *</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Minimum Investment (₹) *</label>
                   <input
                     type="number"
                     required
@@ -743,7 +743,7 @@ export default function CreatorOnboardPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Investment ($)</label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Investment (₹)</label>
                   <input
                     type="number"
                     value={offeringData.maxInvestment}
@@ -757,13 +757,13 @@ export default function CreatorOnboardPage() {
                 <h3 className="font-semibold text-blue-400 mb-2">Offering Summary</h3>
                 <div className="space-y-2 text-gray-300">
                   <p>Total Funding Goal: <span className="font-semibold text-white">
-                    ${(offeringData.totalShares * offeringData.pricePerShare).toLocaleString()}
+                    ₹{(offeringData.totalShares * offeringData.pricePerShare).toLocaleString('en-IN')}
                   </span></p>
                   <p>Revenue Share: <span className="font-semibold text-white">
                     {offeringData.sharePercentage}% for {offeringData.duration} months
                   </span></p>
                   <p>Investment Range: <span className="font-semibold text-white">
-                    ${offeringData.minInvestment} - ${offeringData.maxInvestment}
+                    ₹{offeringData.minInvestment.toLocaleString('en-IN')} - ₹{offeringData.maxInvestment.toLocaleString('en-IN')}
                   </span></p>
                 </div>
               </div>

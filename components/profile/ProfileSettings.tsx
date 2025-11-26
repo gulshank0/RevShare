@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { 
-  User, Mail, CreditCard, Upload, Save, Loader2, Wallet, DollarSign, 
+  User, Mail, CreditCard, Upload, Save, Loader2, Wallet, IndianRupee, 
   TrendingUp, ArrowUpRight, ArrowDownRight, Building, Plus, Trash2, 
   CheckCircle, AlertCircle, Clock, X, Shield, ChevronDown, ChevronUp,
   RefreshCw, Ban
@@ -183,13 +183,13 @@ export default function ProfileSettings() {
   const handleDepositClick = async () => {
     const amount = parseFloat(depositAmount);
     
-    if (!amount || amount < 10) {
-      alert('Minimum deposit is $10');
+    if (!amount || amount < 50) {
+      alert('Minimum deposit is ₹50');
       return;
     }
     
-    if (amount > 100000) {
-      alert('Maximum deposit is $100,000');
+    if (amount > 10000000) {
+      alert('Maximum deposit is ₹1,00,00,000');
       return;
     }
 
@@ -313,8 +313,8 @@ export default function ProfileSettings() {
     
     const amount = parseFloat(withdrawAmount);
     
-    if (!amount || amount < 25) {
-      setWithdrawError('Minimum withdrawal is $25');
+    if (!amount || amount < 50) {
+      setWithdrawError('Minimum withdrawal is ₹50');
       return;
     }
 
@@ -451,9 +451,9 @@ export default function ProfileSettings() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount);
   };
 
@@ -477,11 +477,11 @@ export default function ProfileSettings() {
         return <TrendingUp className="w-5 h-5 text-blue-500" />;
       case 'EARNING':
       case 'PAYOUT':
-        return <DollarSign className="w-5 h-5 text-green-500" />;
+        return <IndianRupee className="w-5 h-5 text-green-500" />;
       case 'REFUND':
         return <RefreshCw className="w-5 h-5 text-yellow-500" />;
       default:
-        return <DollarSign className="w-5 h-5 text-gray-500" />;
+        return <IndianRupee className="w-5 h-5 text-gray-500" />;
     }
   };
 
@@ -505,7 +505,7 @@ export default function ProfileSettings() {
 
   const verifiedBankAccounts = bankAccounts.filter(b => b.isVerified && b.status === 'VERIFIED');
   const availableBalance = (walletData?.balance || 0) - (walletData?.lockedBalance || 0);
-  const withdrawalFee = parseFloat(withdrawAmount || '0') * 0.015;
+  const withdrawalFee = Number.parseFloat(withdrawAmount || '0') * 0.015;
 
   return (
     <div className="space-y-6">
@@ -705,7 +705,7 @@ export default function ProfileSettings() {
                 <Card className="bg-zinc-900 border-zinc-800 p-6">
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-gray-400 text-sm font-medium">Total Earnings</h3>
-                    <DollarSign className="w-5 h-5 text-green-500" />
+                    <IndianRupee className="w-5 h-5 text-green-500" />
                   </div>
                   <p className="text-2xl font-bold text-white">
                     {formatCurrency(walletData?.totalEarnings || 0)}
@@ -726,25 +726,25 @@ export default function ProfileSettings() {
                     <div className="space-y-4">
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-300">
-                          Deposit Amount (USD)
+                          Deposit Amount (INR)
                         </label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             type="number"
-                            min="10"
-                            max="100000"
-                            step="0.01"
+                            min="50"
+                            max="10000000"
+                            step="1"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
                             className="pl-10 bg-zinc-800 border-zinc-700 text-white"
-                            placeholder="Enter amount (min $10)"
+                            placeholder="Enter amount (min ₹50)"
                           />
                         </div>
                       </div>
 
                       <div className="flex gap-2 flex-wrap">
-                        {[50, 100, 500, 1000].map((amount) => (
+                        {[1000, 5000, 10000, 50000].map((amount) => (
                           <Button
                             key={amount}
                             type="button"
@@ -753,7 +753,7 @@ export default function ProfileSettings() {
                             onClick={() => setDepositAmount(amount.toString())}
                             className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white"
                           >
-                            ${amount}
+                            ₹{amount.toLocaleString('en-IN')}
                           </Button>
                         ))}
                       </div>
@@ -829,19 +829,19 @@ export default function ProfileSettings() {
                     <form onSubmit={handleWithdraw} className="space-y-4">
                       <div className="space-y-2">
                         <label className="block text-sm font-medium text-gray-300">
-                          Withdraw Amount (USD)
+                          Withdraw Amount (INR)
                         </label>
                         <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                          <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             type="number"
-                            min="25"
+                            min="50"
                             max={availableBalance}
-                            step="0.01"
+                            step="1"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                             className="pl-10 bg-zinc-800 border-zinc-700 text-white"
-                            placeholder="Enter amount (min $25)"
+                            placeholder="Enter amount (min ₹50)"
                           />
                         </div>
                         <p className="text-xs text-gray-500">
@@ -868,7 +868,7 @@ export default function ProfileSettings() {
                         </select>
                       </div>
 
-                      {parseFloat(withdrawAmount || '0') >= 25 && (
+                      {parseFloat(withdrawAmount || '0') >= 50 && (
                         <div className="p-3 bg-zinc-800 rounded-lg space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-400">Amount</span>
@@ -978,7 +978,7 @@ export default function ProfileSettings() {
                       value={newBankData.bankName}
                       onChange={(e) => setNewBankData({ ...newBankData, bankName: e.target.value })}
                       className="bg-zinc-800 border-zinc-700 text-white"
-                      placeholder="Bank of America"
+                      placeholder="State Bank of India"
                       required
                     />
                   </div>
@@ -987,14 +987,14 @@ export default function ProfileSettings() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-300">
-                      Routing Number
+                      IFSC Code
                     </label>
                     <Input
                       value={newBankData.routingNumber}
-                      onChange={(e) => setNewBankData({ ...newBankData, routingNumber: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                      onChange={(e) => setNewBankData({ ...newBankData, routingNumber: e.target.value.toUpperCase().slice(0, 11) })}
                       className="bg-zinc-800 border-zinc-700 text-white"
-                      placeholder="9 digits"
-                      maxLength={9}
+                      placeholder="SBIN0001234"
+                      maxLength={11}
                       required
                     />
                   </div>
@@ -1023,7 +1023,7 @@ export default function ProfileSettings() {
                       value={newBankData.accountNumber}
                       onChange={(e) => setNewBankData({ ...newBankData, accountNumber: e.target.value.replace(/\D/g, '') })}
                       className="bg-zinc-800 border-zinc-700 text-white"
-                      placeholder="4-17 digits"
+                      placeholder="9-18 digits"
                       required
                     />
                   </div>

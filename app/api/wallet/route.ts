@@ -101,12 +101,12 @@ export async function POST(req: NextRequest) {
 
     const { amount } = await req.json();
 
-    if (!amount || amount < 10) {
-      return NextResponse.json({ error: 'Minimum deposit is $10' }, { status: 400 });
+    if (!amount || amount < 50) {
+      return NextResponse.json({ error: 'Minimum deposit is ₹50' }, { status: 400 });
     }
 
-    if (amount > 100000) {
-      return NextResponse.json({ error: 'Maximum deposit is $100,000' }, { status: 400 });
+    if (amount > 10000000) {
+      return NextResponse.json({ error: 'Maximum deposit is ₹1,00,00,000' }, { status: 400 });
     }
 
     // Ensure wallet exists

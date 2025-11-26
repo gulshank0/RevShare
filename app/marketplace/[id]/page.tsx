@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Youtube, TrendingUp, Users, DollarSign, Clock, Shield, Play } from 'lucide-react';
+import { ArrowLeft, Youtube, TrendingUp, Users, IndianRupee, Clock, Shield, Play } from 'lucide-react';
 import Link from 'next/link';
 
 export default function OfferingDetailPage() {
@@ -211,11 +211,11 @@ export default function OfferingDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Price per Share</p>
-                  <p className="text-xl font-semibold text-white">${offering.pricePerShare}</p>
+                  <p className="text-xl font-semibold text-white">₹{offering.pricePerShare}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-400 mb-1">Min Investment</p>
-                  <p className="text-xl font-semibold text-white">${offering.minInvestment}</p>
+                  <p className="text-xl font-semibold text-white">₹{offering.minInvestment}</p>
                 </div>
               </div>
 
@@ -265,12 +265,12 @@ export default function OfferingDetailPage() {
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-400">Price per Share</span>
-                    <span className="font-medium text-white">${offering.pricePerShare}</span>
+                    <span className="font-medium text-white">₹{offering.pricePerShare}</span>
                   </div>
                   <div className="border-t border-zinc-700 pt-3 flex justify-between">
                     <span className="font-semibold text-white">Total Investment</span>
                     <span className="font-bold text-xl text-white">
-                      ${totalAmount.toLocaleString()}
+                      ₹{totalAmount.toLocaleString('en-IN')}
                     </span>
                   </div>
                 </div>
@@ -278,7 +278,7 @@ export default function OfferingDetailPage() {
                 {totalAmount < offering.minInvestment && (
                   <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
                     <p className="text-sm text-red-400">
-                      Minimum investment is ${offering.minInvestment}
+                      Minimum investment is ₹{offering.minInvestment}
                     </p>
                   </div>
                 )}
@@ -286,7 +286,7 @@ export default function OfferingDetailPage() {
                 {offering.maxInvestment && totalAmount > offering.maxInvestment && (
                   <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
                     <p className="text-sm text-red-400">
-                      Maximum investment is ${offering.maxInvestment}
+                      Maximum investment is ₹{offering.maxInvestment}
                     </p>
                   </div>
                 )}
@@ -316,7 +316,7 @@ export default function OfferingDetailPage() {
                     Expected monthly payouts starting next month
                   </p>
                   <p className="flex items-center gap-2">
-                    <DollarSign className="h-3 w-3" />
+                    <IndianRupee className="h-3 w-3" />
                     {offering.sharePercentage}% of channel revenue for {offering.duration} months
                   </p>
                 </div>
