@@ -4,38 +4,55 @@ interface KYCData {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
+  gender: 'male' | 'female' | 'other';
+  phoneNumber: string;
   address: {
     street: string;
     city: string;
     state: string;
-    zipCode: string;
+    pincode: string;
     country: string;
   };
-  identityDocument: {
-    type: 'passport' | 'drivers_license' | 'national_id';
-    number: string;
-    expiryDate: string;
-  };
-  phoneNumber: string;
-  taxId?: string; // SSN or Tax ID
+  panNumber: string;
+  documentType: 'aadhaar' | 'passport' | 'voter_id' | 'driving_license';
+  aadhaarNumber?: string;
+  documentNumber?: string;
+  documentFrontUrl?: string;
+  documentBackUrl?: string;
+  selfieUrl?: string;
 }
 
 export class KYCService {
   async initiateKYC(userId: string, kycData: KYCData) {
     try {
-      // In production, integrate with services like Jumio, Onfido, or Veriff
+      // In production, integrate with services like Aadhaar eKYC, DigiLocker, or Karza
       const verificationId = `kyc_${Date.now()}_${userId}`;
       
+      // Prepare sanitized data for storage (sensitive data should be encrypted in production)
+      const sanitizedData = {
+        firstName: kycData.firstName,
+        lastName: kycData.lastName,
+        dateOfBirth: kycData.dateOfBirth,
+        gender: kycData.gender,
+        phoneNumber: kycData.phoneNumber,
+        address: kycData.address,
+        panNumber: kycData.panNumber,
+        documentType: kycData.documentType,
+        aadhaarNumber: kycData.aadhaarNumber,
+        documentNumber: kycData.documentNumber,
+        documentFrontUrl: kycData.documentFrontUrl,
+        documentBackUrl: kycData.documentBackUrl,
+        selfieUrl: kycData.selfieUrl,
+        verificationId,
+        submittedAt: new Date().toISOString(),
+      };
+
       // Store KYC data (encrypted in production)
       await prisma.user.update({
         where: { id: userId },
         data: {
           kycStatus: 'PENDING',
-          kycData: {
-            ...kycData,
-            verificationId,
-            submittedAt: new Date().toISOString(),
-          },
+          kycData: sanitizedData as any,
         },
       });
 
@@ -136,21 +153,21 @@ export class KYCService {
         0
       );
 
-      // Set investment limits based on KYC tier
-      const maxInvestmentLimit = 10000; // $10,000 for basic KYC
-      const maxSingleInvestment = 2500; // $2,500 per investment
+      // Set investment limits based on KYC tier (amounts in INR)
+      const maxInvestmentLimit = 1000000; // ₹10,00,000 for basic KYC
+      const maxSingleInvestment = 250000; // ₹2,50,000 per investment
 
       if (investmentAmount > maxSingleInvestment) {
         return {
           eligible: false,
-          reason: `Single investment limit is $${maxSingleInvestment}`,
+          reason: `Single investment limit is ₹${maxSingleInvestment.toLocaleString('en-IN')}`,
         };
       }
 
       if (totalInvested + investmentAmount > maxInvestmentLimit) {
         return {
           eligible: false,
-          reason: `Total investment limit of $${maxInvestmentLimit} would be exceeded`,
+          reason: `Total investment limit of ₹${maxInvestmentLimit.toLocaleString('en-IN')} would be exceeded`,
         };
       }
 

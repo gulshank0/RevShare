@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2023-10-16',
+  apiVersion: '2024-11-20.acacia',
 });
 
 // Withdrawal processing fee
@@ -726,13 +726,20 @@ export class PaymentService {
         process.env.STRIPE_WEBHOOK_SECRET!
       );
 
+      console.log('Webhook event received:', event.type);
+
       switch (event.type) {
         case 'payment_intent.succeeded': {
-          const metadata = event.data.object.metadata;
+          const paymentIntent = event.data.object;
+          const metadata = paymentIntent.metadata;
+          console.log('Payment succeeded:', paymentIntent.id, 'metadata:', metadata);
+          
           if (metadata.type === 'wallet_deposit') {
-            await this.confirmWalletDeposit(event.data.object.id);
+            console.log('Processing wallet deposit for payment intent:', paymentIntent.id);
+            const result = await this.confirmWalletDeposit(paymentIntent.id);
+            console.log('Wallet deposit confirmed:', result);
           } else if (metadata.type === 'investment') {
-            await this.confirmPayment(event.data.object.id);
+            await this.confirmPayment(paymentIntent.id);
           }
           break;
         }

@@ -9,7 +9,8 @@ import {
   User, Mail, CreditCard, Upload, Save, Loader2, Wallet, IndianRupee, 
   TrendingUp, ArrowUpRight, ArrowDownRight, Building, Plus, Trash2, 
   CheckCircle, AlertCircle, Clock, X, Shield, ChevronDown, ChevronUp,
-  RefreshCw, Ban
+  RefreshCw, Ban, FileText, Camera, Calendar, MapPin, Phone, BadgeCheck,
+  AlertTriangle, Eye, EyeOff
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
@@ -73,7 +74,7 @@ export default function ProfileSettings() {
   const { data: session, update } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'wallet' | 'bank' | 'history'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'kyc' | 'wallet' | 'bank' | 'history'>('profile');
   
   // Wallet state
   const [walletData, setWalletData] = useState<WalletData | null>(null);
@@ -113,8 +114,66 @@ export default function ProfileSettings() {
   const [imagePreview, setImagePreview] = useState(session?.user?.image || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   
+  // KYC state
+  const [kycStatus, setKycStatus] = useState<'PENDING' | 'VERIFIED' | 'REJECTED' | 'NOT_SUBMITTED'>('NOT_SUBMITTED');
+  const [kycData, setKycData] = useState<any>(null);
+  const [isLoadingKyc, setIsLoadingKyc] = useState(false);
+  const [kycError, setKycError] = useState('');
+  const [kycSuccess, setKycSuccess] = useState('');
+  const [showPanNumber, setShowPanNumber] = useState(false);
+  const [showAadhaarNumber, setShowAadhaarNumber] = useState(false);
+  const [kycFormData, setKycFormData] = useState({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    gender: 'male' as 'male' | 'female' | 'other',
+    phoneNumber: '',
+    address: {
+      street: '',
+      city: '',
+      state: '',
+      pincode: '',
+      country: 'India',
+    },
+    panNumber: '',
+    aadhaarNumber: '',
+    documentType: 'aadhaar' as 'aadhaar' | 'passport' | 'voter_id' | 'driving_license',
+    documentNumber: '',
+    documentFrontImage: null as File | null,
+    documentBackImage: null as File | null,
+    selfieImage: null as File | null,
+  });
+  const [documentFrontPreview, setDocumentFrontPreview] = useState('');
+  const [documentBackPreview, setDocumentBackPreview] = useState('');
+  const [selfiePreview, setSelfiePreview] = useState('');
+  
   // Expanded sections
   const [expandedTransaction, setExpandedTransaction] = useState<string | null>(null);
+  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState<string | null>(null);
+
+  // Check for payment success from URL query params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(globalThis.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      // Clear the URL parameter
+      const newUrl = globalThis.location.pathname;
+      globalThis.history.replaceState({}, '', newUrl);
+      
+      // Show success message and switch to wallet tab
+      setActiveTab('wallet');
+      setPaymentSuccessMessage('Payment successful! Your wallet balance has been updated.');
+      
+      // Fetch latest wallet data
+      fetchWalletData();
+      
+      // Clear message after 5 seconds
+      setTimeout(() => {
+        setPaymentSuccessMessage(null);
+      }, 5000);
+    }
+  }, []);
 
   // Fetch data when tabs change
   useEffect(() => {
@@ -127,7 +186,50 @@ export default function ProfileSettings() {
     if (activeTab === 'history') {
       fetchWithdrawals();
     }
+    if (activeTab === 'kyc') {
+      fetchKycStatus();
+    }
   }, [activeTab]);
+
+  // Fetch KYC status on initial load
+  useEffect(() => {
+    fetchKycStatus();
+  }, []);
+
+  const fetchKycStatus = async () => {
+    setIsLoadingKyc(true);
+    try {
+      const response = await fetch('/api/kyc');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setKycStatus(data.status || 'NOT_SUBMITTED');
+          setKycData(data.data);
+          
+          // Pre-fill form if data exists
+          if (data.data) {
+            setKycFormData(prev => ({
+              ...prev,
+              firstName: data.data.firstName || '',
+              lastName: data.data.lastName || '',
+              dateOfBirth: data.data.dateOfBirth || '',
+              gender: data.data.gender || 'male',
+              phoneNumber: data.data.phoneNumber || '',
+              address: data.data.address || prev.address,
+              panNumber: data.data.panNumber || '',
+              aadhaarNumber: data.data.aadhaarNumber || '',
+              documentType: data.data.documentType || 'aadhaar',
+              documentNumber: data.data.documentNumber || '',
+            }));
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching KYC status:', error);
+    } finally {
+      setIsLoadingKyc(false);
+    }
+  };
 
   const fetchWalletData = async () => {
     setIsLoadingWallet(true);
@@ -183,8 +285,8 @@ export default function ProfileSettings() {
   const handleDepositClick = async () => {
     const amount = parseFloat(depositAmount);
     
-    if (!amount || amount < 5) {
-      alert('Minimum deposit is ₹5');
+    if (!amount || amount < 55) {
+      alert('Minimum deposit is ₹55');
       return;
     }
     
@@ -217,10 +319,21 @@ export default function ProfileSettings() {
     }
   };
 
-  const handleDepositSuccess = () => {
+  const handleDepositSuccess = (newBalance?: number) => {
     setShowDepositForm(false);
     setClientSecret('');
     setDepositAmount('');
+    
+    // If new balance was provided, update it immediately
+    if (newBalance !== undefined && walletData) {
+      setWalletData({
+        ...walletData,
+        balance: newBalance,
+        totalDeposited: walletData.totalDeposited + parseFloat(depositAmount || '0'),
+      });
+    }
+    
+    // Still fetch to ensure we have the latest data
     fetchWalletData();
   };
 
@@ -313,8 +426,8 @@ export default function ProfileSettings() {
     
     const amount = parseFloat(withdrawAmount);
     
-    if (!amount || amount < 5) {
-      setWithdrawError('Minimum withdrawal is ₹5');
+    if (!amount || amount < 55) {
+      setWithdrawError('Minimum withdrawal is ₹55');
       return;
     }
 
@@ -450,6 +563,265 @@ export default function ProfileSettings() {
     }
   };
 
+  // KYC document image handlers
+  const handleDocumentFrontChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setKycError('Document image must be less than 5MB');
+        return;
+      }
+      setKycFormData(prev => ({ ...prev, documentFrontImage: file }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDocumentFrontPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDocumentBackChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setKycError('Document image must be less than 5MB');
+        return;
+      }
+      setKycFormData(prev => ({ ...prev, documentBackImage: file }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDocumentBackPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSelfieChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setKycError('Selfie image must be less than 5MB');
+        return;
+      }
+      setKycFormData(prev => ({ ...prev, selfieImage: file }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSelfiePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Validate Indian PAN number
+  const validatePan = (pan: string) => {
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    return panRegex.test(pan.toUpperCase());
+  };
+
+  // Validate Indian Aadhaar number
+  const validateAadhaar = (aadhaar: string) => {
+    const aadhaarRegex = /^[2-9]{1}[0-9]{11}$/;
+    return aadhaarRegex.test(aadhaar.replace(/\s/g, ''));
+  };
+
+  // Validate Indian phone number
+  const validatePhoneNumber = (phone: string) => {
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
+  // Validate Pincode
+  const validatePincode = (pincode: string) => {
+    const pincodeRegex = /^[1-9][0-9]{5}$/;
+    return pincodeRegex.test(pincode);
+  };
+
+  const handleKycSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setKycError('');
+    setKycSuccess('');
+    setIsLoading(true);
+
+    // Validation
+    if (!kycFormData.firstName.trim() || !kycFormData.lastName.trim()) {
+      setKycError('First name and last name are required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!kycFormData.dateOfBirth) {
+      setKycError('Date of birth is required');
+      setIsLoading(false);
+      return;
+    }
+
+    // Age validation (must be 18+)
+    const dob = new Date(kycFormData.dateOfBirth);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+      age--;
+    }
+    if (age < 18) {
+      setKycError('You must be at least 18 years old');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validatePhoneNumber(kycFormData.phoneNumber)) {
+      setKycError('Please enter a valid 10-digit Indian mobile number');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!kycFormData.address.street || !kycFormData.address.city || 
+        !kycFormData.address.state || !kycFormData.address.pincode) {
+      setKycError('Complete address is required');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validatePincode(kycFormData.address.pincode)) {
+      setKycError('Please enter a valid 6-digit pincode');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!validatePan(kycFormData.panNumber)) {
+      setKycError('Please enter a valid PAN number (e.g., ABCDE1234F)');
+      setIsLoading(false);
+      return;
+    }
+
+    if (kycFormData.documentType === 'aadhaar' && !validateAadhaar(kycFormData.aadhaarNumber)) {
+      setKycError('Please enter a valid 12-digit Aadhaar number');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!kycFormData.documentFrontImage) {
+      setKycError('Please upload the front side of your identity document');
+      setIsLoading(false);
+      return;
+    }
+
+    if (kycFormData.documentType !== 'passport' && !kycFormData.documentBackImage) {
+      setKycError('Please upload the back side of your identity document');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!kycFormData.selfieImage) {
+      setKycError('Please upload a selfie for verification');
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Upload documents first
+      const uploadDocument = async (file: File, type: string) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type);
+        
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to upload ${type}`);
+        }
+        
+        const data = await response.json();
+        return data.url;
+      };
+
+      const documentFrontUrl = await uploadDocument(kycFormData.documentFrontImage, 'kyc_document_front');
+      const documentBackUrl = kycFormData.documentBackImage 
+        ? await uploadDocument(kycFormData.documentBackImage, 'kyc_document_back')
+        : null;
+      const selfieUrl = await uploadDocument(kycFormData.selfieImage, 'kyc_selfie');
+
+      // Submit KYC data
+      const response = await fetch('/api/kyc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: kycFormData.firstName.trim(),
+          lastName: kycFormData.lastName.trim(),
+          dateOfBirth: kycFormData.dateOfBirth,
+          gender: kycFormData.gender,
+          phoneNumber: kycFormData.phoneNumber.replace(/\s/g, ''),
+          address: {
+            street: kycFormData.address.street.trim(),
+            city: kycFormData.address.city.trim(),
+            state: kycFormData.address.state.trim(),
+            pincode: kycFormData.address.pincode.trim(),
+            country: 'India',
+          },
+          panNumber: kycFormData.panNumber.toUpperCase(),
+          aadhaarNumber: kycFormData.aadhaarNumber.replace(/\s/g, ''),
+          documentType: kycFormData.documentType,
+          documentNumber: kycFormData.documentNumber || kycFormData.aadhaarNumber,
+          documents: {
+            front: documentFrontUrl,
+            back: documentBackUrl,
+            selfie: selfieUrl,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setKycSuccess('KYC verification submitted successfully! We will review your documents within 24-48 hours.');
+        setKycStatus('PENDING');
+        fetchKycStatus();
+      } else {
+        setKycError(data.error || 'Failed to submit KYC verification');
+      }
+    } catch (error: any) {
+      console.error('KYC submission error:', error);
+      setKycError(error.message || 'Failed to submit KYC verification. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const getKycStatusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      VERIFIED: 'bg-green-500/10 text-green-500 border-green-500/20',
+      PENDING: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
+      REJECTED: 'bg-red-500/10 text-red-500 border-red-500/20',
+      NOT_SUBMITTED: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    };
+    
+    const labels: Record<string, string> = {
+      VERIFIED: 'Verified',
+      PENDING: 'Under Review',
+      REJECTED: 'Rejected',
+      NOT_SUBMITTED: 'Not Submitted',
+    };
+    
+    return (
+      <span className={`px-3 py-1 rounded-full text-sm font-medium border ${colors[status] || colors.NOT_SUBMITTED}`}>
+        {labels[status] || 'Unknown'}
+      </span>
+    );
+  };
+
+  const indianStates = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+    'Andaman and Nicobar Islands', 'Chandigarh', 'Dadra and Nagar Haveli and Daman and Diu',
+    'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Lakshadweep', 'Puducherry',
+  ];
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -510,9 +882,10 @@ export default function ProfileSettings() {
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
-      <div className="flex space-x-1 bg-zinc-800/50 rounded-lg p-1">
+      <div className="flex space-x-1 bg-zinc-800/50 rounded-lg p-1 overflow-x-auto">
         {[
           { id: 'profile', label: 'Profile', icon: User },
+          { id: 'kyc', label: 'KYC', icon: Shield, badge: kycStatus !== 'VERIFIED' },
           { id: 'wallet', label: 'Wallet', icon: Wallet },
           { id: 'bank', label: 'Bank Accounts', icon: Building },
           { id: 'history', label: 'History', icon: Clock },
@@ -520,7 +893,7 @@ export default function ProfileSettings() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all ${
+            className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all relative ${
               activeTab === tab.id
                 ? 'bg-red-600 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-zinc-700/50'
@@ -528,6 +901,9 @@ export default function ProfileSettings() {
           >
             <tab.icon className="w-4 h-4" />
             <span className="hidden sm:inline">{tab.label}</span>
+            {tab.badge && kycStatus !== 'VERIFIED' && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-500 rounded-full" />
+            )}
           </button>
         ))}
       </div>
@@ -654,9 +1030,618 @@ export default function ProfileSettings() {
         </Card>
       )}
 
+      {/* KYC Tab */}
+      {activeTab === 'kyc' && (
+        <div className="space-y-6">
+          {/* KYC Status Card */}
+          <Card className="bg-zinc-900 border-zinc-800 p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${
+                  kycStatus === 'VERIFIED' 
+                    ? 'bg-green-500/10' 
+                    : kycStatus === 'PENDING' 
+                    ? 'bg-yellow-500/10' 
+                    : kycStatus === 'REJECTED'
+                    ? 'bg-red-500/10'
+                    : 'bg-zinc-800'
+                }`}>
+                  {kycStatus === 'VERIFIED' ? (
+                    <BadgeCheck className="w-7 h-7 text-green-500" />
+                  ) : kycStatus === 'PENDING' ? (
+                    <Clock className="w-7 h-7 text-yellow-500" />
+                  ) : kycStatus === 'REJECTED' ? (
+                    <AlertTriangle className="w-7 h-7 text-red-500" />
+                  ) : (
+                    <Shield className="w-7 h-7 text-gray-500" />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">KYC Verification</h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    {kycStatus === 'VERIFIED' 
+                      ? 'Your identity has been verified' 
+                      : kycStatus === 'PENDING'
+                      ? 'Your verification is under review'
+                      : kycStatus === 'REJECTED'
+                      ? 'Your verification was rejected'
+                      : 'Complete KYC to enable withdrawals'}
+                  </p>
+                </div>
+              </div>
+              {getKycStatusBadge(kycStatus)}
+            </div>
+
+            {kycStatus === 'VERIFIED' && (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                  <div>
+                    <p className="text-green-400 font-medium">Verification Complete</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Your KYC verification is complete. You can now withdraw funds to your bank account.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {kycStatus === 'PENDING' && (
+              <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Clock className="w-5 h-5 text-yellow-500 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-400 font-medium">Verification In Progress</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      We are reviewing your documents. This usually takes 24-48 hours. You will receive an email once the verification is complete.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {kycStatus === 'REJECTED' && kycData?.rejectionReason && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mb-6">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+                  <div>
+                    <p className="text-red-400 font-medium">Verification Rejected</p>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Reason: {kycData.rejectionReason}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Please resubmit your documents with correct information.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* KYC Form - Show only if not verified or rejected */}
+          {(kycStatus === 'NOT_SUBMITTED' || kycStatus === 'REJECTED') && (
+            <Card className="bg-zinc-900 border-zinc-800 p-6">
+              <form onSubmit={handleKycSubmit} className="space-y-6">
+                {/* Error/Success Messages */}
+                {kycError && (
+                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg flex items-center gap-3">
+                    <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                    <p className="text-red-400 text-sm">{kycError}</p>
+                  </div>
+                )}
+                {kycSuccess && (
+                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+                    <p className="text-green-400 text-sm">{kycSuccess}</p>
+                  </div>
+                )}
+
+                {/* Personal Information */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <User className="w-5 h-5 text-red-600" />
+                    Personal Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        First Name <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={kycFormData.firstName}
+                        onChange={(e) => setKycFormData({ ...kycFormData, firstName: e.target.value })}
+                        className="bg-zinc-800 border-zinc-700 text-white"
+                        placeholder="Enter first name"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Last Name <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={kycFormData.lastName}
+                        onChange={(e) => setKycFormData({ ...kycFormData, lastName: e.target.value })}
+                        className="bg-zinc-800 border-zinc-700 text-white"
+                        placeholder="Enter last name"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Date of Birth <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Input
+                          type="date"
+                          value={kycFormData.dateOfBirth}
+                          onChange={(e) => setKycFormData({ ...kycFormData, dateOfBirth: e.target.value })}
+                          className="pl-10 bg-zinc-800 border-zinc-700 text-white"
+                          max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                          required
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">Must be 18 years or older</p>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Gender <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={kycFormData.gender}
+                        onChange={(e) => setKycFormData({ ...kycFormData, gender: e.target.value as any })}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
+                      >
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Mobile Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <div className="flex">
+                          <span className="inline-flex items-center px-3 bg-zinc-700 border border-r-0 border-zinc-600 rounded-l-lg text-gray-300 text-sm">
+                            +91
+                          </span>
+                          <Input
+                            type="tel"
+                            value={kycFormData.phoneNumber}
+                            onChange={(e) => setKycFormData({ ...kycFormData, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                            className="bg-zinc-800 border-zinc-700 text-white rounded-l-none"
+                            placeholder="10-digit mobile number"
+                            maxLength={10}
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Address */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-red-600" />
+                    Address
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Street Address <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={kycFormData.address.street}
+                        onChange={(e) => setKycFormData({ 
+                          ...kycFormData, 
+                          address: { ...kycFormData.address, street: e.target.value } 
+                        })}
+                        className="bg-zinc-800 border-zinc-700 text-white"
+                        placeholder="House/Flat No., Building, Street"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        City <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={kycFormData.address.city}
+                        onChange={(e) => setKycFormData({ 
+                          ...kycFormData, 
+                          address: { ...kycFormData.address, city: e.target.value } 
+                        })}
+                        className="bg-zinc-800 border-zinc-700 text-white"
+                        placeholder="City"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        State <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={kycFormData.address.state}
+                        onChange={(e) => setKycFormData({ 
+                          ...kycFormData, 
+                          address: { ...kycFormData.address, state: e.target.value } 
+                        })}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
+                        required
+                      >
+                        <option value="">Select State</option>
+                        {indianStates.map((state) => (
+                          <option key={state} value={state}>{state}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Pincode <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={kycFormData.address.pincode}
+                        onChange={(e) => setKycFormData({ 
+                          ...kycFormData, 
+                          address: { ...kycFormData.address, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) } 
+                        })}
+                        className="bg-zinc-800 border-zinc-700 text-white"
+                        placeholder="6-digit pincode"
+                        maxLength={6}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Country
+                      </label>
+                      <Input
+                        value="India"
+                        disabled
+                        className="bg-zinc-700 border-zinc-600 text-gray-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Identity Documents */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-red-600" />
+                    Identity Documents
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* PAN Number */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        PAN Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          type={showPanNumber ? 'text' : 'password'}
+                          value={kycFormData.panNumber}
+                          onChange={(e) => setKycFormData({ ...kycFormData, panNumber: e.target.value.toUpperCase().slice(0, 10) })}
+                          className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                          placeholder="ABCDE1234F"
+                          maxLength={10}
+                          required
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPanNumber(!showPanNumber)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                        >
+                          {showPanNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500">Permanent Account Number (mandatory for tax purposes)</p>
+                    </div>
+
+                    {/* Document Type */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        ID Proof Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={kycFormData.documentType}
+                        onChange={(e) => setKycFormData({ ...kycFormData, documentType: e.target.value as any })}
+                        className="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white"
+                      >
+                        <option value="aadhaar">Aadhaar Card</option>
+                        <option value="passport">Passport</option>
+                        <option value="voter_id">Voter ID Card</option>
+                        <option value="driving_license">Driving License</option>
+                      </select>
+                    </div>
+
+                    {/* Aadhaar Number - Show only if Aadhaar is selected */}
+                    {kycFormData.documentType === 'aadhaar' && (
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-300">
+                          Aadhaar Number <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <Input
+                            type={showAadhaarNumber ? 'text' : 'password'}
+                            value={kycFormData.aadhaarNumber}
+                            onChange={(e) => setKycFormData({ ...kycFormData, aadhaarNumber: e.target.value.replace(/\D/g, '').slice(0, 12) })}
+                            className="bg-zinc-800 border-zinc-700 text-white pr-10"
+                            placeholder="12-digit Aadhaar number"
+                            maxLength={12}
+                            required={kycFormData.documentType === 'aadhaar'}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAadhaarNumber(!showAadhaarNumber)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            {showAadhaarNumber ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Document Number for non-Aadhaar */}
+                    {kycFormData.documentType !== 'aadhaar' && (
+                      <div className="space-y-2 md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-300">
+                          {kycFormData.documentType === 'passport' ? 'Passport Number' :
+                           kycFormData.documentType === 'voter_id' ? 'Voter ID Number' :
+                           'Driving License Number'} <span className="text-red-500">*</span>
+                        </label>
+                        <Input
+                          value={kycFormData.documentNumber}
+                          onChange={(e) => setKycFormData({ ...kycFormData, documentNumber: e.target.value.toUpperCase() })}
+                          className="bg-zinc-800 border-zinc-700 text-white"
+                          placeholder="Enter document number"
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Document Upload */}
+                <div>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Upload className="w-5 h-5 text-red-600" />
+                    Document Upload
+                  </h4>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Please upload clear images of your documents. Accepted formats: JPG, PNG (max 5MB each)
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Document Front */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Document Front <span className="text-red-500">*</span>
+                      </label>
+                      <div className={`relative border-2 border-dashed rounded-lg p-4 text-center ${
+                        documentFrontPreview ? 'border-green-500/50' : 'border-zinc-700 hover:border-red-600/50'
+                      }`}>
+                        {documentFrontPreview ? (
+                          <div className="relative">
+                            <img 
+                              src={documentFrontPreview} 
+                              alt="Document Front" 
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDocumentFrontPreview('');
+                                setKycFormData(prev => ({ ...prev, documentFrontImage: null }));
+                              }}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer block">
+                            <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                            <span className="text-sm text-gray-400">Click to upload</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/jpg"
+                              onChange={handleDocumentFrontChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Document Back - Not needed for passport */}
+                    {kycFormData.documentType !== 'passport' && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-300">
+                          Document Back <span className="text-red-500">*</span>
+                        </label>
+                        <div className={`relative border-2 border-dashed rounded-lg p-4 text-center ${
+                          documentBackPreview ? 'border-green-500/50' : 'border-zinc-700 hover:border-red-600/50'
+                        }`}>
+                          {documentBackPreview ? (
+                            <div className="relative">
+                              <img 
+                                src={documentBackPreview} 
+                                alt="Document Back" 
+                                className="w-full h-32 object-cover rounded-lg"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setDocumentBackPreview('');
+                                  setKycFormData(prev => ({ ...prev, documentBackImage: null }));
+                                }}
+                                className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <label className="cursor-pointer block">
+                              <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                              <span className="text-sm text-gray-400">Click to upload</span>
+                              <input
+                                type="file"
+                                accept="image/jpeg,image/png,image/jpg"
+                                onChange={handleDocumentBackChange}
+                                className="hidden"
+                              />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Selfie */}
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium text-gray-300">
+                        Selfie Photo <span className="text-red-500">*</span>
+                      </label>
+                      <div className={`relative border-2 border-dashed rounded-lg p-4 text-center ${
+                        selfiePreview ? 'border-green-500/50' : 'border-zinc-700 hover:border-red-600/50'
+                      }`}>
+                        {selfiePreview ? (
+                          <div className="relative">
+                            <img 
+                              src={selfiePreview} 
+                              alt="Selfie" 
+                              className="w-full h-32 object-cover rounded-lg"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelfiePreview('');
+                                setKycFormData(prev => ({ ...prev, selfieImage: null }));
+                              }}
+                              className="absolute -top-2 -right-2 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center text-white"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer block">
+                            <Camera className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                            <span className="text-sm text-gray-400">Take or upload selfie</span>
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/jpg"
+                              onChange={handleSelfieChange}
+                              className="hidden"
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500">Clear front-facing photo of yourself</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Terms & Conditions */}
+                <div className="p-4 bg-zinc-800/50 rounded-lg border border-zinc-700">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="kyc-terms"
+                      required
+                      className="w-4 h-4 mt-1 rounded border-zinc-600 bg-zinc-800 text-red-600 focus:ring-red-600"
+                    />
+                    <label htmlFor="kyc-terms" className="text-sm text-gray-400">
+                      I hereby declare that the information provided above is true and correct to the best of my knowledge. 
+                      I authorize the verification of my identity documents as per the applicable KYC regulations. 
+                      I understand that providing false information may result in legal action.
+                    </label>
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    disabled={isLoading}
+                    className="bg-red-600 hover:bg-red-700 text-white px-8"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-4 h-4 mr-2" />
+                        Submit KYC Verification
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          )}
+
+          {/* Submitted KYC Details - Show when pending or verified */}
+          {(kycStatus === 'PENDING' || kycStatus === 'VERIFIED') && kycData && (
+            <Card className="bg-zinc-900 border-zinc-800 p-6">
+              <h4 className="text-lg font-semibold text-white mb-4">Submitted Information</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">Full Name</p>
+                  <p className="text-white">{kycData.firstName} {kycData.lastName}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">Date of Birth</p>
+                  <p className="text-white">{kycData.dateOfBirth ? new Date(kycData.dateOfBirth).toLocaleDateString('en-IN') : '-'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">Phone Number</p>
+                  <p className="text-white">+91 {kycData.phoneNumber}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">PAN Number</p>
+                  <p className="text-white">{kycData.panNumber ? `****${kycData.panNumber.slice(-4)}` : '-'}</p>
+                </div>
+                <div className="space-y-1 md:col-span-2">
+                  <p className="text-sm text-gray-500">Address</p>
+                  <p className="text-white">
+                    {kycData.address?.street}, {kycData.address?.city}, {kycData.address?.state} - {kycData.address?.pincode}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">Document Type</p>
+                  <p className="text-white capitalize">{kycData.documentType?.replace('_', ' ')}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm text-gray-500">Submitted On</p>
+                  <p className="text-white">{kycData.submittedAt ? new Date(kycData.submittedAt).toLocaleDateString('en-IN') : '-'}</p>
+                </div>
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
       {/* Wallet Tab */}
       {activeTab === 'wallet' && (
         <div className="space-y-6">
+          {/* Payment Success Message */}
+          {paymentSuccessMessage && (
+            <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+              <p className="text-green-400 font-medium">{paymentSuccessMessage}</p>
+              <button 
+                onClick={() => setPaymentSuccessMessage(null)}
+                className="ml-auto text-gray-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          
           {isLoadingWallet ? (
             <Card className="bg-zinc-900 border-zinc-800 p-8">
               <div className="flex items-center justify-center">
@@ -732,13 +1717,13 @@ export default function ProfileSettings() {
                           <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             type="number"
-                            min="5"
+                            min="55"
                             max="10000000"
                             step="1"
                             value={depositAmount}
                             onChange={(e) => setDepositAmount(e.target.value)}
                             className="pl-10 bg-zinc-800 border-zinc-700 text-white"
-                            placeholder="Enter amount (min ₹5)"
+                            placeholder="Enter amount (min ₹55)"
                           />
                         </div>
                       </div>
@@ -799,17 +1784,41 @@ export default function ProfileSettings() {
                   </h3>
 
                   {session?.user?.kycStatus !== 'VERIFIED' ? (
-                    <div className="text-center py-8">
-                      <Shield className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-                      <p className="text-gray-400 mb-4">
-                        Complete KYC verification to enable withdrawals
+                    <div className="text-center py-8 px-4">
+                      <div className="relative inline-block mb-6">
+                        <div className="absolute inset-0 bg-yellow-500/20 rounded-full blur-xl animate-pulse"></div>
+                        <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-yellow-500/30 flex items-center justify-center mx-auto">
+                          <Shield className="w-10 h-10 text-yellow-500" />
+                        </div>
+                      </div>
+                      <h4 className="text-lg font-semibold text-white mb-2">
+                        KYC Verification Required
+                      </h4>
+                      <p className="text-gray-400 mb-2 max-w-sm mx-auto">
+                        Complete your identity verification to unlock withdrawal features and secure your account.
                       </p>
+                      <div className="flex items-center justify-center gap-4 text-sm text-gray-500 mb-6">
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          Secure Process
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-4 h-4 text-blue-500" />
+                          24-48 hrs Review
+                        </span>
+                      </div>
                       <Button
-                        onClick={() => router.push('/profile?tab=kyc')}
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                        onClick={() => setActiveTab('kyc')}
+                        className="relative group bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-500 hover:to-orange-500 text-white font-semibold px-8 py-3 rounded-lg shadow-lg shadow-yellow-500/25 hover:shadow-yellow-500/40 transition-all duration-300 transform hover:scale-105"
                       >
+                        <span className="absolute inset-0 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity"></span>
+                        <Shield className="w-5 h-5 mr-2 inline-block" />
                         Complete Verification
+                        <ArrowUpRight className="w-4 h-4 ml-2 inline-block group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                       </Button>
+                      <p className="text-xs text-gray-600 mt-4">
+                        Required documents: PAN Card, Aadhaar/Passport/Voter ID
+                      </p>
                     </div>
                   ) : verifiedBankAccounts.length === 0 ? (
                     <div className="text-center py-8">
@@ -835,13 +1844,13 @@ export default function ProfileSettings() {
                           <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                           <Input
                             type="number"
-                            min="5"
+                            min="55"
                             max={availableBalance}
                             step="1"
                             value={withdrawAmount}
                             onChange={(e) => setWithdrawAmount(e.target.value)}
                             className="pl-10 bg-zinc-800 border-zinc-700 text-white"
-                            placeholder="Enter amount (min ₹5)"
+                            placeholder="Enter amount (min ₹55)"
                           />
                         </div>
                         <p className="text-xs text-gray-500">
@@ -868,7 +1877,7 @@ export default function ProfileSettings() {
                         </select>
                       </div>
 
-                      {parseFloat(withdrawAmount || '0') >= 5 && (
+                      {parseFloat(withdrawAmount || '0') >= 55 && (
                         <div className="p-3 bg-zinc-800 rounded-lg space-y-2">
                           <div className="flex justify-between text-sm">
                             <span className="text-gray-400">Amount</span>

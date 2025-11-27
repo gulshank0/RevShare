@@ -6,7 +6,8 @@ const paymentService = new PaymentService();
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get('stripe-signature') as string;
+  const headersList = await headers();
+  const signature = headersList.get('stripe-signature') as string;
 
   if (!signature) {
     return NextResponse.json(
@@ -16,7 +17,8 @@ export async function POST(req: Request) {
   }
 
   try {
-    await paymentService.handleWebhook(body, signature);
+    const result = await paymentService.handleWebhook(body, signature);
+    console.log('Webhook processed successfully:', result);
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Webhook error:', error);

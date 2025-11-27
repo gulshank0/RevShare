@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { PaymentService } from '@/lib/services/payment';
 
@@ -101,8 +101,8 @@ export async function POST(req: NextRequest) {
 
     const { amount } = await req.json();
 
-    if (!amount || amount < 5) {
-      return NextResponse.json({ error: 'Minimum deposit is ₹5' }, { status: 400 });
+    if (!amount || amount < 55) {
+      return NextResponse.json({ error: 'Minimum deposit is ₹55' }, { status: 400 });
     }
 
     if (amount > 10000000) {
