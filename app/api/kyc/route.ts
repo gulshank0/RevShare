@@ -100,16 +100,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const status = await kycService.checkKYCStatus(session.user.id);
+    const result = await kycService.checkKYCStatus(session.user.id);
 
     return NextResponse.json({
       success: true,
-      ...status,
+      status: result.status,
+      data: result.data,
     });
   } catch (error) {
     console.error('KYC status check error:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to check KYC status' },
+      { success: false, error: 'Failed to check KYC status', status: 'NOT_SUBMITTED', data: null },
       { status: 500 }
     );
   }

@@ -56,6 +56,7 @@ export const authOptions: NextAuthOptions = {
               id: true,
               role: true, 
               kycStatus: true, 
+              kycData: true,
               name: true, 
               email: true, 
               image: true 
@@ -64,7 +65,21 @@ export const authOptions: NextAuthOptions = {
           
           if (dbUser) {
             session.user.role = dbUser.role;
-            session.user.kycStatus = dbUser.kycStatus;
+            
+            // Determine correct KYC status based on whether data was actually submitted
+            const kycData = dbUser.kycData as Record<string, unknown> | null;
+            const hasSubmittedKyc = kycData && 
+              typeof kycData === 'object' && 
+              kycData.firstName && 
+              kycData.lastName && 
+              kycData.submittedAt;
+            
+            if (hasSubmittedKyc) {
+              session.user.kycStatus = dbUser.kycStatus;
+            } else {
+              session.user.kycStatus = 'NOT_SUBMITTED';
+            }
+            
             session.user.name = dbUser.name;
             session.user.email = dbUser.email;
             session.user.image = dbUser.image;

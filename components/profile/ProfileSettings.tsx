@@ -160,6 +160,7 @@ export default function ProfileSettings() {
   const [kycSuccess, setKycSuccess] = useState('');
   const [showPanNumber, setShowPanNumber] = useState(false);
   const [showAadhaarNumber, setShowAadhaarNumber] = useState(false);
+  const [kycStep, setKycStep] = useState(1); // 1: Personal, 2: Address, 3: Documents, 4: Upload & Verify
   const [kycFormData, setKycFormData] = useState({
     firstName: '',
     lastName: '',

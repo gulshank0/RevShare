@@ -79,9 +79,29 @@ export class KYCService {
         throw new Error('User not found');
       }
 
+      // If kycData is null or doesn't have required fields, it means KYC hasn't been submitted
+      const kycData = user.kycData as Record<string, unknown> | null;
+      const hasSubmittedKyc = kycData && 
+        typeof kycData === 'object' && 
+        kycData.firstName && 
+        kycData.lastName && 
+        kycData.submittedAt;
+
+      // Determine the actual status
+      let status: string;
+      if (!hasSubmittedKyc) {
+        status = 'NOT_SUBMITTED';
+      } else if (user.kycStatus === 'REJECTED') {
+        status = 'REJECTED';
+      } else if (user.kycStatus === 'VERIFIED') {
+        status = 'VERIFIED';
+      } else {
+        status = 'PENDING';
+      }
+
       return {
-        status: user.kycStatus,
-        data: user.kycData,
+        status,
+        data: hasSubmittedKyc ? user.kycData : null,
       };
     } catch (error) {
       console.error('KYC status check error:', error);
