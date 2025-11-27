@@ -68,7 +68,15 @@ export default function Navbar() {
               href="/dashboard/investor" 
               className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
             >
-              Portfolio
+              Dashboard
+            </Link>
+          )}
+          {session?.user?.role === 'INVESTOR' && (
+            <Link 
+              href="/trading/portfolio" 
+              className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
+            >
+              My Portfolio
             </Link>
           )}
           {session?.user?.role === 'ADMIN' && (
@@ -186,7 +194,16 @@ export default function Navbar() {
                 className="block px-3 py-2 text-sm font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Portfolio
+                Dashboard
+              </Link>
+            )}
+            {session?.user?.role === 'INVESTOR' && (
+              <Link
+                href="/trading/portfolio"
+                className="block px-3 py-2 text-sm font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                My Portfolio
               </Link>
             )}
             {session?.user?.role === 'ADMIN' && (

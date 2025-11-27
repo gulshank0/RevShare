@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Badge } from '@/components/ui/badge';
 import { LineChart, Line, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { DollarSign, Users, Eye, ArrowUpRight, ArrowDownRight, TrendingUp, BarChart3, Search, X } from 'lucide-react';
+import { DollarSign, Users, Eye, ArrowUpRight, ArrowDownRight, TrendingUp, BarChart3, Search, X, ShoppingCart, Tag, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface ChannelMetrics {
   id: string;
@@ -24,18 +26,48 @@ interface ChannelMetrics {
   revenueData: { month: string; revenue: number }[];
 }
 
+interface SellOrder {
+  id: string;
+  sharesRemaining: number;
+  pricePerShare: number;
+  minShares: number;
+  status: string;
+  seller: {
+    id: string;
+    name: string | null;
+  };
+  offering: {
+    id: string;
+    channel: {
+      channelName: string;
+    };
+  };
+}
+
 export default function ChannelsMarketPage() {
+  const { data: session } = useSession();
   const [channels, setChannels] = useState<ChannelMetrics[]>([]);
+  const [sellOrders, setSellOrders] = useState<SellOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChannel, setSelectedChannel] = useState<string | null>(null);
   const [compareMode, setCompareMode] = useState(false);
   const [comparedChannels, setComparedChannels] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'value' | 'change' | 'volume' | 'marketCap'>('value');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showTradingPanel, setShowTradingPanel] = useState(false);
+  const [buyForm, setBuyForm] = useState({ orderId: '', shares: 1 });
+  const [processing, setProcessing] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     fetchMarketData();
   }, []);
+
+  useEffect(() => {
+    if (selectedChannel) {
+      fetchSellOrders(selectedChannel);
+    }
+  }, [selectedChannel]);
 
   const fetchMarketData = async () => {
     try {
@@ -44,7 +76,7 @@ export default function ChannelsMarketPage() {
       
       if (data.success) {
         // Transform offerings into channel metrics with mock historical data
-        const channelMetrics: ChannelMetrics[] = data.offerings.map((offering: any, index: number) => {
+        const channelMetrics: ChannelMetrics[] = data.offerings.map((offering: any) => {
           // Generate mock historical data (last 30 days)
           const historicalData = generateHistoricalData(offering.pricePerShare, 30);
           const revenueData = generateRevenueData(12);
@@ -83,6 +115,67 @@ export default function ChannelsMarketPage() {
       setLoading(false);
     }
   };
+
+  const fetchSellOrders = async (offeringId: string) => {
+    try {
+      const response = await fetch(`/api/trading/sell-orders?offeringId=${offeringId}`);
+      const data = await response.json();
+      if (data.success) {
+        setSellOrders(data.sellOrders);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sell orders:', error);
+    }
+  };
+
+  const handleBuyFromOrder = async (order: SellOrder) => {
+    if (!session) {
+      setMessage({ type: 'error', text: 'Please sign in to trade' });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
+
+    setBuyForm({ orderId: order.id, shares: order.minShares });
+    setShowTradingPanel(true);
+  };
+
+  const executeTrade = async () => {
+    if (!buyForm.orderId) return;
+
+    setProcessing(true);
+    try {
+      const response = await fetch('/api/trading/trades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sellOrderId: buyForm.orderId,
+          shares: buyForm.shares,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message });
+        setShowTradingPanel(false);
+        setBuyForm({ orderId: '', shares: 1 });
+        // Refresh data
+        fetchMarketData();
+        if (selectedChannel) {
+          fetchSellOrders(selectedChannel);
+        }
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Trade failed' });
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Failed to execute trade' });
+    } finally {
+      setProcessing(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const selectedOrder = sellOrders.find(o => o.id === buyForm.orderId);
 
   const generateHistoricalData = (basePrice: number, days: number) => {
     const data = [];
@@ -154,9 +247,9 @@ export default function ChannelsMarketPage() {
   };
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
       minimumFractionDigits: 2,
     }).format(value);
   };
@@ -396,7 +489,7 @@ export default function ChannelsMarketPage() {
                           tick={{ fontSize: 12, fill: '#a1a1aa' }}
                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         />
-                        <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `$${value}`} />
+                        <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `₹${value}`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#000000', border: '1px solid #3f3f46', borderRadius: '8px' }}
                           labelStyle={{ color: '#a1a1aa' }}
@@ -464,7 +557,7 @@ export default function ChannelsMarketPage() {
                       <BarChart data={selectedChannelData.revenueData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" />
                       <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#a1a1aa' }} />
-                      <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `$${formatNumber(value)}`} />
+                      <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `₹${formatNumber(value)}`} />
                       <Tooltip
                         contentStyle={{ backgroundColor: '#000000', border: '1px solid #3f3f46', borderRadius: '8px' }}
                         labelStyle={{ color: '#a1a1aa' }}
@@ -526,7 +619,7 @@ export default function ChannelsMarketPage() {
                           tick={{ fontSize: 12, fill: '#a1a1aa' }}
                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         />
-                        <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `$${value}`} />
+                        <YAxis tick={{ fontSize: 12, fill: '#a1a1aa' }} tickFormatter={(value) => `₹${value}`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: '#000000', border: '1px solid #3f3f46', borderRadius: '8px' }}
                           labelStyle={{ color: '#a1a1aa' }}
@@ -653,8 +746,211 @@ export default function ChannelsMarketPage() {
                 </div>
               </div>
             )}
+
+            {/* Sell Orders / Order Book */}
+            {!compareMode && selectedChannelData && (
+              <div className="youtube-card">
+                <div className="p-4 border-b border-zinc-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                        <Tag className="w-5 h-5 text-red-600" />
+                        Available Shares for Sale
+                      </h3>
+                      <p className="text-sm text-gray-400 mt-1">Buy shares from other investors</p>
+                    </div>
+                    <Link href="/trading/portfolio">
+                      <Button className="youtube-button-outline text-sm">
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        My Portfolio
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+                <div className="p-4">
+                  {sellOrders.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Tag className="w-12 h-12 mx-auto text-gray-600 mb-3" />
+                      <p className="text-gray-400">No shares listed for sale</p>
+                      <p className="text-sm text-gray-500 mt-1">Be the first to list your shares!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sellOrders.slice(0, 5).map((order) => (
+                        <div
+                          key={order.id}
+                          className="flex items-center justify-between p-3 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+                        >
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-white">
+                                {order.sharesRemaining} shares
+                              </span>
+                              <span className="text-gray-400">@</span>
+                              <span className="font-semibold text-green-400">
+                                ₹{order.pricePerShare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Min: {order.minShares} shares • Seller: {order.seller.name || 'Anonymous'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-gray-400">
+                              Total: ₹{(order.sharesRemaining * order.pricePerShare).toLocaleString('en-IN')}
+                            </span>
+                            <Button
+                              size="sm"
+                              className="youtube-button"
+                              onClick={() => handleBuyFromOrder(order)}
+                              disabled={order.seller.id === session?.user?.id}
+                            >
+                              Buy
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                      {sellOrders.length > 5 && (
+                        <p className="text-center text-sm text-gray-400 pt-2">
+                          +{sellOrders.length - 5} more listings
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Message Toast */}
+        {message && (
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg flex items-center gap-3 ${
+            message.type === 'success' 
+              ? 'bg-green-500/10 border border-green-500/20 text-green-400' 
+              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+          }`}>
+            {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span>{message.text}</span>
+            <button onClick={() => setMessage(null)}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Trading Panel Modal */}
+        {showTradingPanel && selectedOrder && (
+          <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div className="youtube-card max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-red-600" />
+                  Buy Shares
+                </h2>
+                <button 
+                  onClick={() => {
+                    setShowTradingPanel(false);
+                    setBuyForm({ orderId: '', shares: 1 });
+                  }} 
+                  className="text-gray-400 hover:text-white"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-zinc-800 rounded-lg">
+                  <p className="text-gray-400 text-sm">Channel</p>
+                  <p className="font-semibold text-white">{selectedOrder.offering.channel.channelName}</p>
+                  <div className="flex justify-between mt-3">
+                    <div>
+                      <p className="text-gray-400 text-sm">Available</p>
+                      <p className="font-semibold text-white">{selectedOrder.sharesRemaining} shares</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-gray-400 text-sm">Price/Share</p>
+                      <p className="font-semibold text-green-400">
+                        ₹{selectedOrder.pricePerShare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-white mb-2 block">
+                    Shares to Buy
+                  </label>
+                  <input
+                    type="number"
+                    min={selectedOrder.minShares}
+                    max={selectedOrder.sharesRemaining}
+                    value={buyForm.shares}
+                    onChange={(e) => setBuyForm({ 
+                      ...buyForm, 
+                      shares: Math.max(
+                        selectedOrder.minShares, 
+                        Math.min(selectedOrder.sharesRemaining, Number.parseInt(e.target.value) || selectedOrder.minShares)
+                      ) 
+                    })}
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    Min: {selectedOrder.minShares} • Max: {selectedOrder.sharesRemaining}
+                  </p>
+                </div>
+
+                <div className="p-4 bg-zinc-800 rounded-lg">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-400">Shares</span>
+                    <span className="font-semibold text-white">{buyForm.shares}</span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-2">
+                    <span className="text-gray-400">Price per Share</span>
+                    <span className="font-semibold text-white">
+                      ₹{selectedOrder.pricePerShare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm mt-2 pt-2 border-t border-zinc-700">
+                    <span className="font-semibold text-gray-400">Total Cost</span>
+                    <span className="font-bold text-xl text-white">
+                      ₹{(buyForm.shares * selectedOrder.pricePerShare).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1 border-zinc-700"
+                    onClick={() => {
+                      setShowTradingPanel(false);
+                      setBuyForm({ orderId: '', shares: 1 });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 youtube-button"
+                    onClick={executeTrade}
+                    disabled={processing}
+                  >
+                    {processing ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="w-4 h-4 mr-2" />
+                        Confirm Purchase
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

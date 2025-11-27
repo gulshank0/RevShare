@@ -29,6 +29,9 @@ model User {
   investments   Investment[]
   transactions  Transaction[]
   wallet        Wallet?
+  sellOrders    SellOrder[]   @relation("UserSellOrders")
+  buyTrades     Trade[]       @relation("UserBuyTrades")
+  sellTrades    Trade[]       @relation("UserSellTrades")
   
   @@map("users")
 }
@@ -111,6 +114,8 @@ model Offering {
   // Relations
   channel         Channel        @relation(fields: [channelId], references: [id])
   investments     Investment[]
+  sellOrders      SellOrder[]
+  trades          Trade[]
   
   @@map("offerings")
 }
@@ -129,6 +134,7 @@ model Investment {
   investor    User      @relation(fields: [investorId], references: [id])
   offering    Offering  @relation(fields: [offeringId], references: [id])
   payouts     Payout[]
+  sellOrders  SellOrder[]
   
   @@map("investments")
 }
@@ -275,6 +281,67 @@ model WalletLedger {
   @@map("wallet_ledger")
 }
 
+// Secondary Market Trading Models
+model SellOrder {
+  id              String          @id @default(cuid())
+  sellerId        String
+  investmentId    String
+  offeringId      String
+  sharesListed    Int             // Number of shares listed for sale
+  sharesRemaining Int             // Remaining shares available
+  pricePerShare   Float           // Asking price per share
+  minShares       Int             @default(1) // Minimum shares per purchase
+  status          SellOrderStatus @default(ACTIVE)
+  expiresAt       DateTime?       // Optional expiration
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  cancelledAt     DateTime?
+  
+  // Relations
+  seller          User            @relation("UserSellOrders", fields: [sellerId], references: [id])
+  investment      Investment      @relation(fields: [investmentId], references: [id])
+  offering        Offering        @relation(fields: [offeringId], references: [id])
+  trades          Trade[]
+  
+  @@index([sellerId])
+  @@index([offeringId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sell_orders")
+}
+
+model Trade {
+  id              String          @id @default(cuid())
+  sellOrderId     String
+  buyerId         String
+  sellerId        String
+  offeringId      String
+  shares          Int
+  pricePerShare   Float
+  totalAmount     Float
+  platformFee     Float           @default(0) // Platform commission
+  netAmount       Float           // Amount after fees
+  status          TradeStatus     @default(PENDING)
+  createdAt       DateTime        @default(now())
+  completedAt     DateTime?
+  
+  // Relations
+  sellOrder       SellOrder       @relation(fields: [sellOrderId], references: [id])
+  buyer           User            @relation("UserBuyTrades", fields: [buyerId], references: [id])
+  seller          User            @relation("UserSellTrades", fields: [sellerId], references: [id])
+  offering        Offering        @relation(fields: [offeringId], references: [id])
+  
+  // New investment created for buyer
+  buyerInvestmentId String?
+  
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([offeringId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("trades")
+}
+
 // Enums
 enum UserRole {
   CREATOR
@@ -366,4 +433,21 @@ enum LedgerEntryType {
   ADJUSTMENT
   LOCK
   UNLOCK
+  TRADE_BUY
+  TRADE_SELL
+}
+
+enum SellOrderStatus {
+  ACTIVE
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  EXPIRED
+}
+
+enum TradeStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
 }

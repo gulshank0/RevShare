@@ -2,24 +2,43 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Youtube, TrendingUp, Users, IndianRupee, Clock, Shield, Play } from 'lucide-react';
+import { ArrowLeft, Youtube, TrendingUp, Users, IndianRupee, Clock, Shield, Play, Tag, ShoppingCart, Wallet, Check, AlertCircle, X } from 'lucide-react';
 import Link from 'next/link';
 
+interface SellOrder {
+  id: string;
+  sharesRemaining: number;
+  pricePerShare: number;
+  minShares: number;
+  status: string;
+  seller: {
+    id: string;
+    name: string | null;
+  };
+}
+
 export default function OfferingDetailPage() {
+  const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
   const [offering, setOffering] = useState<any>(null);
+  const [sellOrders, setSellOrders] = useState<SellOrder[]>([]);
+  const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [shares, setShares] = useState(1);
   const [investing, setInvesting] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<SellOrder | null>(null);
+  const [secondaryShares, setSecondaryShares] = useState(1);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     if (params.id) {
       fetchOffering();
+      fetchSellOrders();
+      fetchWallet();
     }
   }, [params.id]);
 
@@ -37,27 +56,103 @@ export default function OfferingDetailPage() {
     }
   };
 
+  const fetchSellOrders = async () => {
+    try {
+      const res = await fetch(`/api/trading/sell-orders?offeringId=${params.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setSellOrders(data.sellOrders);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sell orders:', error);
+    }
+  };
+
+  const fetchWallet = async () => {
+    try {
+      const res = await fetch('/api/wallet');
+      const data = await res.json();
+      if (data.success) {
+        setWallet(data.wallet);
+      }
+    } catch (error) {
+      console.error('Failed to fetch wallet:', error);
+    }
+  };
+
   const handleInvest = async () => {
     setInvesting(true);
     try {
-      const res = await fetch('/api/investment', {
+      // Use wallet balance if available
+      if (wallet && wallet.balance >= shares * offering.pricePerShare) {
+        const res = await fetch('/api/wallet/invest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offeringId: params.id, shares }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          setMessage({ type: 'success', text: 'Investment successful!' });
+          fetchOffering();
+          fetchWallet();
+        } else {
+          setMessage({ type: 'error', text: data.error || 'Investment failed' });
+        }
+      } else {
+        // Use payment flow
+        const res = await fetch('/api/investment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ offeringId: params.id, shares }),
+        });
+
+        const data = await res.json();
+        if (data.success) {
+          router.push(`/payment?clientSecret=${data.payment.clientSecret}`);
+        } else {
+          setMessage({ type: 'error', text: data.error || 'Investment failed' });
+        }
+      }
+    } catch (error) {
+      console.error('Investment error:', error);
+      setMessage({ type: 'error', text: 'Failed to process investment' });
+    } finally {
+      setInvesting(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleBuyFromOrder = async () => {
+    if (!selectedOrder) return;
+    
+    setInvesting(true);
+    try {
+      const res = await fetch('/api/trading/trades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ offeringId: params.id, shares }),
+        body: JSON.stringify({
+          sellOrderId: selectedOrder.id,
+          shares: secondaryShares,
+        }),
       });
 
       const data = await res.json();
       if (data.success) {
-        // Redirect to payment page with clientSecret
-        router.push(`/payment?clientSecret=${data.payment.clientSecret}`);
+        setMessage({ type: 'success', text: data.message });
+        setSelectedOrder(null);
+        fetchSellOrders();
+        fetchWallet();
+        fetchOffering();
       } else {
-        alert(data.error || 'Investment failed');
+        setMessage({ type: 'error', text: data.error || 'Trade failed' });
       }
     } catch (error) {
-      console.error('Investment error:', error);
-      alert('Failed to process investment');
+      console.error('Trade error:', error);
+      setMessage({ type: 'error', text: 'Failed to execute trade' });
     } finally {
       setInvesting(false);
+      setTimeout(() => setMessage(null), 5000);
     }
   };
 
@@ -250,7 +345,7 @@ export default function OfferingDetailPage() {
                     min="1"
                     max={offering.availableShares}
                     value={shares}
-                    onChange={(e) => setShares(Math.max(1, parseInt(e.target.value) || 1))}
+                    onChange={(e) => setShares(Math.max(1, Number.parseInt(e.target.value) || 1))}
                     className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
                   />
                   <p className="text-sm text-gray-400 mt-2">
@@ -291,11 +386,32 @@ export default function OfferingDetailPage() {
                   </div>
                 )}
 
+                {/* Wallet Balance Info */}
+                {wallet && (
+                  <div className="p-3 bg-zinc-800 border border-zinc-700 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-400 flex items-center gap-2">
+                        <Wallet className="w-4 h-4" />
+                        Wallet Balance
+                      </span>
+                      <span className="font-semibold text-white">
+                        ₹{wallet.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    {wallet.balance >= totalAmount && (
+                      <p className="text-xs text-green-400 mt-1">
+                        ✓ Sufficient balance for this investment
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <Button
                   className="youtube-button w-full text-base py-6"
                   onClick={handleInvest}
                   disabled={
                     investing ||
+                    offering.availableShares === 0 ||
                     totalAmount < offering.minInvestment ||
                     (offering.maxInvestment && totalAmount > offering.maxInvestment)
                   }
@@ -305,6 +421,10 @@ export default function OfferingDetailPage() {
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
                       Processing...
                     </>
+                  ) : offering.availableShares === 0 ? (
+                    'Sold Out'
+                  ) : wallet && wallet.balance >= totalAmount ? (
+                    'Invest from Wallet'
                   ) : (
                     'Invest Now'
                   )}
@@ -321,9 +441,111 @@ export default function OfferingDetailPage() {
                   </p>
                 </div>
               </div>
+
+              {/* Secondary Market */}
+              {sellOrders.length > 0 && (
+                <div className="mt-6 pt-6 border-t border-zinc-800">
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-red-600" />
+                    Secondary Market
+                  </h4>
+                  <p className="text-sm text-gray-400 mb-4">Buy from other investors</p>
+                  
+                  <div className="space-y-3">
+                    {sellOrders.slice(0, 3).map((order) => (
+                      <div
+                        key={order.id}
+                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                          selectedOrder?.id === order.id 
+                            ? 'bg-red-600/10 border-red-600/30' 
+                            : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600'
+                        }`}
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setSecondaryShares(order.minShares);
+                        }}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <span className="font-semibold text-white">{order.sharesRemaining} shares</span>
+                            <span className="text-gray-400 mx-2">@</span>
+                            <span className="font-semibold text-green-400">
+                              ₹{order.pricePerShare.toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          {order.pricePerShare < offering.pricePerShare && (
+                            <Badge className="bg-green-600/20 text-green-400 border-green-600/30 text-xs">
+                              {(((offering.pricePerShare - order.pricePerShare) / offering.pricePerShare) * 100).toFixed(1)}% below
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Min: {order.minShares} shares
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedOrder && (
+                    <div className="mt-4 p-4 bg-zinc-800 rounded-lg space-y-3">
+                      <div>
+                        <label className="text-sm font-medium text-white mb-2 block">
+                          Shares to Buy
+                        </label>
+                        <input
+                          type="number"
+                          min={selectedOrder.minShares}
+                          max={selectedOrder.sharesRemaining}
+                          value={secondaryShares}
+                          onChange={(e) => setSecondaryShares(
+                            Math.max(
+                              selectedOrder.minShares,
+                              Math.min(selectedOrder.sharesRemaining, Number.parseInt(e.target.value) || selectedOrder.minShares)
+                            )
+                          )}
+                          className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600"
+                        />
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Total</span>
+                        <span className="font-bold text-white">
+                          ₹{(secondaryShares * selectedOrder.pricePerShare).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <Button
+                        className="youtube-button w-full"
+                        onClick={handleBuyFromOrder}
+                        disabled={investing || selectedOrder.seller.id === session?.user?.id}
+                      >
+                        {investing ? 'Processing...' : (
+                          <>
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            Buy from Seller
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Message Toast */}
+        {message && (
+          <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg flex items-center gap-3 ${
+            message.type === 'success' 
+              ? 'bg-green-500/10 border border-green-500/20 text-green-400' 
+              : 'bg-red-500/10 border border-red-500/20 text-red-400'
+          }`}>
+            {message.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            <span>{message.text}</span>
+            <button onClick={() => setMessage(null)}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
