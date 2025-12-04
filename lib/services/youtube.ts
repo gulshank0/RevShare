@@ -1,20 +1,39 @@
-import { google } from 'googleapis';
-import { prisma } from '@/lib/prisma';
+import { google, Auth } from 'googleapis';
 
 export class YouTubeService {
   private readonly youtube;
+  private readonly auth: Auth.OAuth2Client;
 
-  constructor(accessToken?: string) {
-    const auth = new google.auth.OAuth2(
-      process.env.YOUTUBE_CLIENT_ID,
-      process.env.YOUTUBE_CLIENT_SECRET
+  constructor(accessToken?: string, refreshToken?: string) {
+    this.auth = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET
     );
     
     if (accessToken) {
-      auth.setCredentials({ access_token: accessToken });
+      this.auth.setCredentials({ 
+        access_token: accessToken,
+        refresh_token: refreshToken 
+      });
     }
 
-    this.youtube = google.youtube({ version: 'v3', auth });
+    this.youtube = google.youtube({ version: 'v3', auth: this.auth });
+  }
+
+  // Method to refresh the access token if needed
+  async refreshAccessToken(): Promise<string | null> {
+    try {
+      const { credentials } = await this.auth.refreshAccessToken();
+      return credentials.access_token || null;
+    } catch (error) {
+      console.error('Failed to refresh access token:', error);
+      return null;
+    }
+  }
+
+  // Get the current credentials (useful for saving updated tokens)
+  getCredentials() {
+    return this.auth.credentials;
   }
 
   // Add search functionality
@@ -77,34 +96,17 @@ export class YouTubeService {
   }
 
   async verifyChannelOwnership(userId: string, channelId: string): Promise<boolean> {
-    try {
-      // Get user's OAuth token
-      const account = await prisma.account.findFirst({
-        where: { userId, provider: 'google' },
-      });
+    // Allow anyone with a valid YouTube channel to connect
+    // Simply verify that the channel exists and is accessible
+    const response = await this.youtube.channels.list({
+      part: ['id', 'snippet'],
+      id: [channelId],
+    });
 
-      if (!account?.access_token) {
-        throw new Error('No valid YouTube access token found');
-      }
-
-      // Set up authenticated YouTube client
-      const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: account.access_token });
-      
-      const youtube = google.youtube({ version: 'v3', auth });
-
-      // Get user's channels
-      const response = await youtube.channels.list({
-        part: ['id', 'snippet'],
-        mine: true,
-      });
-
-      const userChannels = response.data.items || [];
-      return userChannels.some(channel => channel.id === channelId);
-    } catch (error) {
-      console.error('Channel verification error:', error);
-      return false;
-    }
+    const channels = response.data.items || [];
+    
+    // Return true if the channel exists and is valid
+    return channels.length > 0 && channels[0].id === channelId;
   }
 
   async getChannelAnalytics(channelId: string) {

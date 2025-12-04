@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import crypto from 'crypto';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  // @ts-expect-error - Using latest Stripe API version
   apiVersion: '2024-11-20.acacia',
 });
 

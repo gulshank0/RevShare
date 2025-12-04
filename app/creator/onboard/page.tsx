@@ -266,7 +266,7 @@ export default function CreatorOnboardPage() {
     {
       id: 2,
       title: 'YouTube Verification',
-      description: 'Connect and verify your YouTube channel ownership',
+      description: 'Connect your YouTube channel to get started',
       icon: Video,
       status: getStepStatus(2)
     },
@@ -548,7 +548,7 @@ export default function CreatorOnboardPage() {
             <div className="p-8 border-b border-zinc-800">
               <h2 className="text-2xl font-bold text-white">Step 2: Connect YouTube Channel</h2>
               <p className="text-gray-400 text-lg mt-2">
-                Verify ownership of your YouTube channel to enable revenue sharing
+                Link your YouTube channel to enable revenue sharing
               </p>
             </div>
             <form onSubmit={handleChannelConnect} className="p-8 space-y-6">
@@ -574,15 +574,11 @@ export default function CreatorOnboardPage() {
                 <ul className="space-y-2 text-gray-400">
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
-                    <span>Minimum 100,000 subscribers</span>
+                    <span>Valid YouTube Channel ID</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
-                    <span>Channel monetization enabled</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
-                    <span>Minimum 6 months of consistent content</span>
+                    <span>Active YouTube channel</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />

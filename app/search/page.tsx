@@ -190,11 +190,13 @@ export default function SearchPage() {
     router.push(`/marketplace?creator=${encodeURIComponent(creator.title)}&channelId=${creator.id}`);
   };
 
+  const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="%2327272a"/%3E%3Ctext x="50%25" y="50%25" font-family="Arial" font-size="24" fill="%2371717a" dominant-baseline="middle" text-anchor="middle"%3E?%3C/text%3E%3C/svg%3E';
+
   const getChannelImage = (creator: Creator) => {
     return creator.thumbnails?.high?.url || 
            creator.thumbnails?.medium?.url || 
            creator.thumbnails?.default?.url ||
-           '/api/placeholder/64/64';
+           placeholderImage;
   };
 
   return (
@@ -331,7 +333,7 @@ export default function SearchPage() {
                         alt={creator.title}
                         className="w-16 h-16 rounded-full object-cover border-2 border-zinc-600"
                         onError={(e) => {
-                          e.currentTarget.src = '/api/placeholder/64/64';
+                          e.currentTarget.src = placeholderImage;
                         }}
                       />
                       <div className="flex-1 min-w-0">

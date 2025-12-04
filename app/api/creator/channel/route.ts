@@ -4,6 +4,64 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { YouTubeService } from '@/lib/services/youtube';
 
+// Helper function to refresh access token if expired
+async function getValidAccessToken(account: {
+  id: string;
+  access_token: string | null;
+  refresh_token: string | null;
+  expires_at: number | null;
+}): Promise<string | null> {
+  // Check if token is expired (with 5 minute buffer)
+  const now = Math.floor(Date.now() / 1000);
+  const isExpired = account.expires_at ? account.expires_at < now + 300 : true;
+
+  if (!isExpired && account.access_token) {
+    return account.access_token;
+  }
+
+  // Token is expired, try to refresh
+  if (!account.refresh_token) {
+    console.error('No refresh token available');
+    return null;
+  }
+
+  try {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.GOOGLE_CLIENT_ID!,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        grant_type: 'refresh_token',
+        refresh_token: account.refresh_token,
+      }),
+    });
+
+    const tokens = await response.json();
+
+    if (!response.ok) {
+      console.error('Token refresh failed:', tokens);
+      return null;
+    }
+
+    // Update the account with new tokens
+    await prisma.account.update({
+      where: { id: account.id },
+      data: {
+        access_token: tokens.access_token,
+        expires_at: Math.floor(Date.now() / 1000) + tokens.expires_in,
+        // refresh_token is only returned if it changed
+        ...(tokens.refresh_token && { refresh_token: tokens.refresh_token }),
+      },
+    });
+
+    return tokens.access_token;
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    return null;
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -34,23 +92,68 @@ export async function POST(request: NextRequest) {
 
     if (!account?.access_token) {
       return NextResponse.json(
-        { success: false, error: 'YouTube authentication required' },
+        { success: false, error: 'YouTube authentication required. Please sign out and sign in again to grant YouTube access.' },
         { status: 401 }
       );
     }
 
-    // Initialize YouTube service
-    const youtubeService = new YouTubeService(account.access_token);
-
-    // Verify channel ownership
-    const isOwner = await youtubeService.verifyChannelOwnership(
-      session.user.id,
-      youtubeChannelId
-    );
-
-    if (!isOwner) {
+    // Check if the account has YouTube scope
+    const hasYouTubeScope = account.scope?.includes('youtube');
+    if (!hasYouTubeScope) {
       return NextResponse.json(
-        { success: false, error: 'Channel ownership verification failed' },
+        { 
+          success: false, 
+          error: 'YouTube channel access not authorized. Please sign out and sign in again to grant YouTube permissions.',
+          requiresReauth: true
+        },
+        { status: 403 }
+      );
+    }
+
+    // Get a valid (refreshed if necessary) access token
+    const accessToken = await getValidAccessToken({
+      id: account.id,
+      access_token: account.access_token,
+      refresh_token: account.refresh_token,
+      expires_at: account.expires_at,
+    });
+
+    if (!accessToken) {
+      return NextResponse.json(
+        { success: false, error: 'YouTube authentication expired. Please sign out and sign in again to refresh your access.' },
+        { status: 401 }
+      );
+    }
+
+    // Initialize YouTube service with refreshed token
+    const youtubeService = new YouTubeService(accessToken, account.refresh_token || undefined);
+
+    // Verify channel exists and is valid
+    let isValid: boolean;
+    try {
+      isValid = await youtubeService.verifyChannelOwnership(
+        session.user.id,
+        youtubeChannelId
+      );
+    } catch (error: unknown) {
+      // Check for insufficient permissions error (missing YouTube scope)
+      const gaxiosError = error as { code?: number; errors?: Array<{ reason?: string }> };
+      if (gaxiosError.code === 403 && gaxiosError.errors?.some(e => e.reason === 'insufficientPermissions')) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'YouTube access not authorized. Please sign out completely and sign in again to grant YouTube channel access.',
+            requiresReauth: true
+          },
+          { status: 403 }
+        );
+      }
+      throw error;
+    }
+
+    if (!isValid) {
+      return NextResponse.json(
+        { success: false, error: 'Channel not found. Please check your Channel ID and try again.' },
         { status: 403 }
       );
     }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
+import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -9,6 +10,10 @@ import { Video, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 export default function AuthError() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+
+  const handleRetry = () => {
+    signIn('google', { callbackUrl: '/' });
+  };
 
   const getErrorDetails = (error: string | null) => {
     switch (error) {
@@ -80,14 +85,14 @@ export default function AuthError() {
   const errorDetails = getErrorDetails(error);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-zinc-950 to-zinc-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-zinc-950 to-zinc-900 px-4">
       <Card className="w-full max-w-md p-8 shadow-xl bg-zinc-900 backdrop-blur-sm">
         <div className="text-center mb-8">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-red-500 to-red-700 shadow-lg">
+            <div className="p-2 rounded-lg bg-linear-to-br from-red-500 to-red-700 shadow-lg">
               <Video className="h-8 w-8 text-white" />
             </div>
-            <span className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-linear-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
               CreatorTube
             </span>
           </Link>
@@ -105,31 +110,38 @@ export default function AuthError() {
           {error === 'AccessDenied' && (
             <div className="mb-6 p-4 bg-yellow-900/50 border border-yellow-700/50 rounded-lg text-left">
               <p className="text-sm text-yellow-200 font-medium mb-2">
-                🔒 App in Testing Mode
+                🔒 Access Restricted
               </p>
               <p className="text-xs text-yellow-300 mb-3">
-                CreatorTube is currently undergoing Google's verification process. 
-                Only approved test users can sign in at this time.
+                Your account does not have permission to access this application. 
+                This could be due to account restrictions or verification requirements.
               </p>
               <div className="space-y-2 text-xs text-yellow-300">
-                <p><strong>If you're a tester:</strong> Make sure your email is added to the test user list.</p>
-                <p><strong>Need access?</strong> Contact the administrator to be added as a test user.</p>
+                <p><strong>What you can do:</strong></p>
+                <ul className="list-disc list-inside ml-2 space-y-1">
+                  <li>Ensure you&apos;re using the correct Google account</li>
+                  <li>Try signing out of Google and signing in again</li>
+                  <li>Contact support if the issue persists</li>
+                </ul>
               </div>
-              <div className="mt-3 pt-2 border-t border-yellow-700/50">
-                <p className="text-xs text-yellow-400">
-                  Contact: <span className="font-mono">gulshan63072@gmail.com</span>
-                </p>
-              </div>
+              {process.env.NEXT_PUBLIC_SUPPORT_EMAIL && (
+                <div className="mt-3 pt-2 border-t border-yellow-700/50">
+                  <p className="text-xs text-yellow-400">
+                    Support: <span className="font-mono">{process.env.NEXT_PUBLIC_SUPPORT_EMAIL}</span>
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
           <div className="space-y-3">
-            <Link href="/auth/signin">
-              <Button className="w-full bg-red-600 hover:bg-red-700 text-white">
-                <RefreshCw className="w-4 h-4 mr-2" />
-                {errorDetails.action}
-              </Button>
-            </Link>
+            <Button 
+              onClick={handleRetry}
+              className="w-full bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              {errorDetails.action}
+            </Button>
             
             <Link href="/">
               <Button variant="outline" className="w-full border-zinc-700/50 text-gray-300 hover:text-white hover:bg-zinc-800/50">
