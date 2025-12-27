@@ -63,14 +63,7 @@ export default function Navbar() {
               Creator Studio
             </Link>
           )}
-          {session?.user?.role === 'INVESTOR' && (
-            <Link 
-              href="/dashboard/investor" 
-              className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
-            >
-              Dashboard
-            </Link>
-          )}
+         
           {session?.user?.role === 'INVESTOR' && (
             <Link 
               href="/trading/portfolio" 
@@ -128,6 +121,12 @@ export default function Navbar() {
                         className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-colors"
                       >
                         View Profile
+                      </button>
+                      <button
+                        onClick={() => router.push('/dashboard/investor')}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-colors"
+                      >
+                        Dashboard
                       </button>
                       <button
                         onClick={() => signOut()}

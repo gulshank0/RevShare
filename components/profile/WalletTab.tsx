@@ -7,7 +7,8 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { 
   Loader2, Wallet, IndianRupee, TrendingUp, ArrowUpRight, ArrowDownRight, 
-  Building, Plus, CheckCircle, AlertCircle, CreditCard, X, Shield, Clock
+  Building, Plus, CheckCircle, AlertCircle, CreditCard, X, Shield, Clock,
+  Sparkles, Gift, Zap
 } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
@@ -44,10 +45,75 @@ export function WalletTab({ onTabChange, paymentSuccessMessage, onDismissMessage
   const [selectedBankAccount, setSelectedBankAccount] = useState('');
   const [withdrawError, setWithdrawError] = useState('');
 
+  // Demo fund state
+  const [showDemoFundModal, setShowDemoFundModal] = useState(false);
+  const [demoFundEnabled, setDemoFundEnabled] = useState(false);
+  const [demoFundAmounts, setDemoFundAmounts] = useState<number[]>([]);
+  const [demoFundLoading, setDemoFundLoading] = useState(false);
+  const [demoFundMessage, setDemoFundMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   useEffect(() => {
     fetchWalletData();
     fetchBankAccounts();
+    checkDemoFundStatus();
   }, [fetchWalletData, fetchBankAccounts]);
+
+  // Check if demo funds are available
+  const checkDemoFundStatus = async () => {
+    try {
+      const response = await fetch('/api/wallet/demo-fund');
+      const data = await response.json();
+      if (data.success) {
+        setDemoFundEnabled(data.enabled);
+        setDemoFundAmounts(data.availableAmounts || []);
+      }
+    } catch (error) {
+      console.error('Error checking demo fund status:', error);
+    }
+  };
+
+  // Add demo funds to wallet
+  const handleAddDemoFunds = async (amount: number) => {
+    setDemoFundLoading(true);
+    setDemoFundMessage(null);
+    
+    try {
+      const response = await fetch('/api/wallet/demo-fund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setDemoFundMessage({ type: 'success', text: data.message });
+        // Update wallet data
+        if (walletData) {
+          setWalletData({
+            ...walletData,
+            balance: data.wallet.balance,
+            totalDeposited: data.wallet.totalDeposited,
+          } as WalletData);
+        }
+        // Refresh demo fund amounts
+        checkDemoFundStatus();
+        fetchWalletData();
+        
+        // Auto-close modal after success
+        setTimeout(() => {
+          setShowDemoFundModal(false);
+          setDemoFundMessage(null);
+        }, 2000);
+      } else {
+        setDemoFundMessage({ type: 'error', text: data.error || 'Failed to add demo funds' });
+      }
+    } catch (error) {
+      setDemoFundMessage({ type: 'error', text: 'Failed to add demo funds' });
+    } finally {
+      setDemoFundLoading(false);
+    }
+  };
 
   // Set default bank account when accounts are loaded
   useEffect(() => {
@@ -470,6 +536,146 @@ export function WalletTab({ onTabChange, paymentSuccessMessage, onDismissMessage
           )}
         </Card>
       </div>
+
+      {/* Demo Funds Section - Only shown in development */}
+      {demoFundEnabled && (
+        <Card className="bg-gradient-to-r from-purple-900/30 to-pink-900/30 border-purple-500/30 p-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shrink-0">
+                <Zap className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-yellow-400" />
+                  Demo Mode Active
+                </h3>
+                <p className="text-gray-300 text-sm mt-1">
+                  Add test funds to your wallet for testing buy/sell features
+                </p>
+                <p className="text-xs text-purple-300 mt-1">
+                  ⚠️ This feature is only available in development mode
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => setShowDemoFundModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-medium px-6"
+            >
+              <Gift className="w-4 h-4 mr-2" />
+              Add Demo Funds
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      {/* Demo Funds Modal */}
+      {showDemoFundModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                  <Zap className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Add Demo Funds</h2>
+                  <p className="text-xs text-gray-400">For testing purposes only</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowDemoFundModal(false);
+                  setDemoFundMessage(null);
+                }} 
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Current Balance Info */}
+            <div className="p-4 bg-zinc-800 rounded-lg mb-6">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-400 text-sm">Current Balance</span>
+                <span className="text-xl font-bold text-white">
+                  {formatCurrency(walletData?.balance || 0)}
+                </span>
+              </div>
+            </div>
+
+            {/* Demo Fund Message */}
+            {demoFundMessage && (
+              <div className={`p-4 rounded-lg mb-4 flex items-center gap-3 ${
+                demoFundMessage.type === 'success' 
+                  ? 'bg-green-500/10 border border-green-500/20' 
+                  : 'bg-red-500/10 border border-red-500/20'
+              }`}>
+                {demoFundMessage.type === 'success' ? (
+                  <CheckCircle className="w-5 h-5 text-green-400" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 text-red-400" />
+                )}
+                <span className={demoFundMessage.type === 'success' ? 'text-green-400' : 'text-red-400'}>
+                  {demoFundMessage.text}
+                </span>
+              </div>
+            )}
+
+            {/* Amount Selection */}
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-300 mb-3">Select amount to add:</p>
+              <div className="grid grid-cols-2 gap-3">
+                {demoFundAmounts.length > 0 ? (
+                  demoFundAmounts.map((amount) => (
+                    <Button
+                      key={amount}
+                      onClick={() => handleAddDemoFunds(amount)}
+                      disabled={demoFundLoading}
+                      className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-medium py-3 transition-all hover:scale-[1.02] hover:border-purple-500/50"
+                    >
+                      {demoFundLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        `₹${amount.toLocaleString('en-IN')}`
+                      )}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center py-4">
+                    <p className="text-gray-400 text-sm">Maximum demo balance reached</p>
+                    <p className="text-xs text-gray-500 mt-1">Current max: ₹10,00,000</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Info Note */}
+            <div className="mt-6 p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+              <p className="text-xs text-purple-300 flex items-start gap-2">
+                <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  Demo funds are instant and free. Use them to test trading features, 
+                  buy shares, and explore the marketplace. These funds have no real value.
+                </span>
+              </p>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDemoFundModal(false);
+                  setDemoFundMessage(null);
+                }}
+                className="border-zinc-700 text-gray-300 hover:bg-zinc-800"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
