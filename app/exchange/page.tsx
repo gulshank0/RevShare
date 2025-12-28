@@ -534,7 +534,7 @@ export default function ExchangePage() {
 
             {/* Market Dropdown */}
             {showMarketList && (
-              <div className="absolute top-full left-0 mt-2 w-80 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 overflow-hidden">
+              <div className="absolute top-full left-0 mt-2 w-80 h-150 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-50 overflow-hidden">
                 <div className="p-3 border-b border-zinc-800">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -547,7 +547,7 @@ export default function ExchangePage() {
                     />
                   </div>
                 </div>
-                <div className="max-h-80 overflow-y-auto">
+                <div className="max-h-150 overflow-y-auto">
                   {filteredOfferings.map(offering => (
                     <button
                       key={offering.id}
