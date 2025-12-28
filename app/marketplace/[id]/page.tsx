@@ -508,10 +508,10 @@ export default function OfferingDetailPage() {
                       </label>
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         max={offering.availableShares}
                         value={shares}
-                        onChange={(e) => setShares(Math.max(1, Number.parseInt(e.target.value) || 1))}
+                        onChange={(e) => setShares(Math.max(0, Number.parseInt(e.target.value)||0))}
                         className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
                       />
                       <p className="text-sm text-gray-400 mt-2">
