@@ -498,13 +498,13 @@ export default function ExchangePage() {
       )}
 
       {/* Top Header */}
-      <div className="border-b border-zinc-800 px-4 py-2">
-        <div className="max-w-[1920px] mx-auto flex items-center justify-between gap-4">
+      <div className="border-b border-zinc-800 px-2 sm:px-4 py-2">
+        <div className="max-w-[1920px] mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-4">
           {/* Market Selector */}
           <div className="relative">
             <button
               onClick={() => setShowMarketList(!showMarketList)}
-              className="flex items-center gap-3 px-4 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
+              className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors"
             >
               {selectedOffering ? (
                 <>
@@ -512,17 +512,17 @@ export default function ExchangePage() {
                     <img 
                       src={selectedOffering.channel.analytics.profileImage}
                       alt={selectedOffering.channel.channelName}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover"
                     />
                   ) : (
-                    <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-red-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-xs sm:text-sm">
                         {selectedOffering.channel.channelName[0]?.toUpperCase()}
                       </span>
                     </div>
                   )}
-                  <div className="text-left">
-                    <p className="text-white font-semibold">{selectedOffering.channel.channelName}</p>
+                  <div className="text-left hidden xs:block">
+                    <p className="text-white font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">{selectedOffering.channel.channelName}</p>
                     <p className="text-xs text-gray-400">{selectedOffering.sharePercentage}% Revenue Share</p>
                   </div>
                 </>
@@ -595,12 +595,12 @@ export default function ExchangePage() {
 
           {/* Price Display */}
           {selectedOffering && (
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 sm:gap-6 flex-wrap">
               <div>
-                <span className="text-2xl font-bold text-white">
+                <span className="text-lg sm:text-2xl font-bold text-white">
                   ₹{selectedOffering.pricePerShare.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className={`ml-3 text-sm font-medium ${
+                <span className={`ml-1 sm:ml-3 text-xs sm:text-sm font-medium ${
                   priceChange.percent >= 0 ? 'text-green-400' : 'text-red-400'
                 }`}>
                   {priceChange.percent >= 0 ? '+' : ''}{priceChange.change.toFixed(2)} ({priceChange.percent.toFixed(2)}%)
@@ -630,19 +630,24 @@ export default function ExchangePage() {
           )}
 
           {/* User Balance */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
             {session && wallet && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 rounded-lg">
-                <Wallet className="w-4 h-4 text-gray-400" />
-                <span className="text-white font-medium">
+              <div className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-zinc-800 rounded-lg">
+                <Wallet className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                <span className="text-white font-medium text-xs sm:text-sm">
                   ₹{wallet.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             )}
-            <Link href="/trading/portfolio">
+            <Link href="/trading/portfolio" className="hidden sm:block">
               <Button className="youtube-button-outline text-sm">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Portfolio
+              </Button>
+            </Link>
+            <Link href="/trading/portfolio" className="sm:hidden">
+              <Button className="youtube-button-outline p-2">
+                <BarChart3 className="w-4 h-4" />
               </Button>
             </Link>
             <Button 
@@ -659,10 +664,10 @@ export default function ExchangePage() {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1920px] mx-auto p-4">
-        <div className="grid grid-cols-12 gap-4">
+      <div className="max-w-[1920px] mx-auto p-2 sm:p-4">
+        <div className="grid grid-cols-12 gap-2 sm:gap-4">
           {/* Left Column - Chart */}
-          <div className="col-span-12 lg:col-span-8 xl:col-span-9 space-y-4">
+          <div className="col-span-12 lg:col-span-8 xl:col-span-9 space-y-2 sm:space-y-4">
             {/* Chart Type Selector */}
             <div className="flex items-center gap-2 mb-2">
               <span className="text-gray-400 text-sm">Chart:</span>
@@ -703,28 +708,28 @@ export default function ExchangePage() {
             )}
 
             {/* Market Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4">
-                <p className="text-xs text-gray-400 mb-1">Market Cap</p>
-                <p className="text-lg font-semibold text-white">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4">
+              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-2 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1">Market Cap</p>
+                <p className="text-sm sm:text-lg font-semibold text-white truncate">
                   ₹{selectedOffering ? (selectedOffering.pricePerShare * selectedOffering.totalShares).toLocaleString('en-IN') : '0'}
                 </p>
               </div>
-              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4">
-                <p className="text-xs text-gray-400 mb-1">Available Shares</p>
-                <p className="text-lg font-semibold text-white">
+              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-2 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1">Available Shares</p>
+                <p className="text-sm sm:text-lg font-semibold text-white truncate">
                   {selectedOffering?.availableShares.toLocaleString()} / {selectedOffering?.totalShares.toLocaleString()}
                 </p>
               </div>
-              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4">
-                <p className="text-xs text-gray-400 mb-1">Your Holdings</p>
-                <p className="text-lg font-semibold text-white">
+              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-2 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1">Your Holdings</p>
+                <p className="text-sm sm:text-lg font-semibold text-white truncate">
                   {userShares.toLocaleString()} shares
                 </p>
               </div>
-              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-4">
-                <p className="text-xs text-gray-400 mb-1">Your Value</p>
-                <p className="text-lg font-semibold text-green-400">
+              <div className="bg-zinc-900 rounded-lg border border-zinc-800 p-2 sm:p-4">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1">Your Value</p>
+                <p className="text-sm sm:text-lg font-semibold text-green-400 truncate">
                   ₹{selectedOffering ? (userShares * selectedOffering.pricePerShare).toLocaleString('en-IN', { minimumFractionDigits: 2 }) : '0'}
                 </p>
               </div>
@@ -738,9 +743,9 @@ export default function ExchangePage() {
           </div>
 
           {/* Right Column - Order Book & Trading Panel */}
-          <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-4">
-            {/* Order Book and Trading Panel in same row */}
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className="col-span-12 lg:col-span-4 xl:col-span-3 space-y-2 sm:space-y-4">
+            {/* Order Book and Trading Panel in same row on larger screens */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-2 sm:gap-4">
               {/* Order Book with Trades Tab */}
               <OrderBook
                 buyOrders={orderBookData.buyOrders}

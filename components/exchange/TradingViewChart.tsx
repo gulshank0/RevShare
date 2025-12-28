@@ -194,16 +194,16 @@ export default function TradingViewChart({
   return (
     <div className="bg-zinc-900 rounded-lg border border-zinc-800 overflow-hidden">
       {/* Chart Header */}
-      <div className="p-4 border-b border-zinc-800">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-4">
+      <div className="p-2 sm:p-4 border-b border-zinc-800">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             <div>
-              <h2 className="text-xl font-bold text-white">{symbol}</h2>
-              <div className="flex items-center gap-3 mt-1">
-                <span className="text-2xl font-bold text-white">
+              <h2 className="text-base sm:text-xl font-bold text-white truncate max-w-[150px] sm:max-w-none">{symbol}</h2>
+              <div className="flex items-center gap-1 sm:gap-3 mt-0.5 sm:mt-1">
+                <span className="text-lg sm:text-2xl font-bold text-white">
                   ₹{currentPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </span>
-                <span className={`flex items-center text-sm font-semibold px-2 py-0.5 rounded ${
+                <span className={`flex items-center text-xs sm:text-sm font-semibold px-1.5 sm:px-2 py-0.5 rounded ${
                   priceChange >= 0 
                     ? 'bg-green-500/20 text-green-400' 
                     : 'bg-red-500/20 text-red-400'
@@ -215,12 +215,12 @@ export default function TradingViewChart({
           </div>
 
           {/* Timeframe Selector */}
-          <div className="flex items-center gap-1 bg-zinc-800 rounded-lg p-1">
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-zinc-800 rounded-lg p-0.5 sm:p-1 overflow-x-auto">
             {timeframes.map((tf) => (
               <button
                 key={tf}
                 onClick={() => handleTimeframeChange(tf)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition ${
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-medium rounded-md transition flex-shrink-0 ${
                   selectedTimeframe === tf
                     ? 'bg-red-600 text-white'
                     : 'text-gray-400 hover:text-white hover:bg-zinc-700'
@@ -238,7 +238,7 @@ export default function TradingViewChart({
 
       {/* Chart Footer - OHLCV */}
       {data.length > 0 && (
-        <div className="px-4 py-2 border-t border-zinc-800 flex flex-wrap gap-4 text-xs">
+        <div className="px-2 sm:px-4 py-1.5 sm:py-2 border-t border-zinc-800 flex flex-wrap gap-2 sm:gap-4 text-[10px] sm:text-xs">
           <div>
             <span className="text-gray-400">O: </span>
             <span className="text-white">₹{data[data.length - 1]?.open.toFixed(2)}</span>

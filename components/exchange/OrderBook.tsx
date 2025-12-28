@@ -103,7 +103,7 @@ export default function OrderBook({
       <div className="flex border-b border-zinc-800">
         <button
           onClick={() => setActiveTab('orderbook')}
-          className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+          className={`flex-1 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition-colors ${
             activeTab === 'orderbook'
               ? 'text-white border-b-2 border-red-500 bg-zinc-800/50'
               : 'text-gray-400 hover:text-white hover:bg-zinc-800/30'
@@ -113,7 +113,7 @@ export default function OrderBook({
         </button>
         <button
           onClick={() => setActiveTab('trades')}
-          className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors ${
+          className={`flex-1 px-2 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-semibold transition-colors ${
             activeTab === 'trades'
               ? 'text-white border-b-2 border-red-500 bg-zinc-800/50'
               : 'text-gray-400 hover:text-white hover:bg-zinc-800/30'
@@ -126,8 +126,8 @@ export default function OrderBook({
       {activeTab === 'orderbook' ? (
         <>
           {/* Column Headers */}
-          <div className="grid grid-cols-3 gap-2 px-3 py-2 text-xs text-gray-400 border-b border-zinc-800">
-            <span>Price (₹)</span>
+          <div className="grid grid-cols-3 gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-400 border-b border-zinc-800">
+            <span>Price</span>
             <span className="text-center">Size</span>
             <span className="text-right">Total</span>
           </div>
@@ -135,14 +135,14 @@ export default function OrderBook({
           {/* Sell Orders (Asks) */}
           <div className="overflow-hidden">
             {processedSellOrders.length === 0 ? (
-              <div className="px-3 py-4 text-center text-gray-500 text-sm">
+              <div className="px-2 sm:px-3 py-3 sm:py-4 text-center text-gray-500 text-xs sm:text-sm">
                 No sell orders
               </div>
             ) : (
               processedSellOrders.map((order, index) => (
                 <div
                   key={`sell-${index}`}
-                  className="relative grid grid-cols-3 gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                  className="relative grid grid-cols-3 gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs cursor-pointer hover:bg-zinc-800/50 transition-colors"
                   onClick={() => onOrderClick?.(order.price, 'sell')}
                 >
                   {/* Background bar */}
@@ -154,23 +154,23 @@ export default function OrderBook({
                       left: 'auto',
                     }}
                   />
-                  <span className="relative text-red-400 font-medium">{formatPrice(order.price)}</span>
+                  <span className="relative text-red-400 font-medium truncate">{formatPrice(order.price)}</span>
                   <span className="relative text-center text-white">{order.shares.toLocaleString()}</span>
-                  <span className="relative text-right text-gray-400">{formatPrice(order.total)}</span>
+                  <span className="relative text-right text-gray-400 truncate">{formatPrice(order.total)}</span>
                 </div>
               ))
             )}
           </div>
 
           {/* Spread / Current Price */}
-          <div className="px-3 py-3 bg-zinc-800 border-y border-zinc-700">
-            <div className="flex items-center justify-between">
-              <span className="text-lg font-bold text-white">
+          <div className="px-2 sm:px-3 py-2 sm:py-3 bg-zinc-800 border-y border-zinc-700">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm sm:text-lg font-bold text-white truncate">
                 {formatPrice(currentPrice)}
               </span>
-              <div className="text-right">
-                <span className="text-xs text-gray-400">Spread: </span>
-                <span className="text-xs text-white">
+              <div className="text-right flex-shrink-0">
+                <span className="text-[10px] sm:text-xs text-gray-400">Spread: </span>
+                <span className="text-[10px] sm:text-xs text-white">
                   {formatPrice(spread)} ({spreadPercent.toFixed(2)}%)
                 </span>
               </div>
@@ -180,14 +180,14 @@ export default function OrderBook({
           {/* Buy Orders (Bids) */}
           <div className="overflow-hidden">
             {processedBuyOrders.length === 0 ? (
-              <div className="px-3 py-4 text-center text-gray-500 text-sm">
+              <div className="px-2 sm:px-3 py-3 sm:py-4 text-center text-gray-500 text-xs sm:text-sm">
                 No buy orders
               </div>
             ) : (
               processedBuyOrders.map((order, index) => (
                 <div
                   key={`buy-${index}`}
-                  className="relative grid grid-cols-3 gap-2 px-3 py-1.5 text-xs cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                  className="relative grid grid-cols-3 gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs cursor-pointer hover:bg-zinc-800/50 transition-colors"
                   onClick={() => onOrderClick?.(order.price, 'buy')}
                 >
                   {/* Background bar */}
@@ -199,9 +199,9 @@ export default function OrderBook({
                       left: 'auto',
                     }}
                   />
-                  <span className="relative text-green-400 font-medium">{formatPrice(order.price)}</span>
+                  <span className="relative text-green-400 font-medium truncate">{formatPrice(order.price)}</span>
                   <span className="relative text-center text-white">{order.shares.toLocaleString()}</span>
-                  <span className="relative text-right text-gray-400">{formatPrice(order.total)}</span>
+                  <span className="relative text-right text-gray-400 truncate">{formatPrice(order.total)}</span>
                 </div>
               ))
             )}
@@ -211,32 +211,32 @@ export default function OrderBook({
         <>
           {/* Trades Tab */}
           {/* Column Headers */}
-          <div className="grid grid-cols-4 gap-2 px-3 py-2 text-xs text-gray-400 border-b border-zinc-800">
-            <span>Price (₹)</span>
+          <div className="grid grid-cols-4 gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs text-gray-400 border-b border-zinc-800">
+            <span>Price</span>
             <span className="text-center">Size</span>
-            <span className="text-center">Total</span>
+            <span className="text-center hidden xs:block">Total</span>
             <span className="text-right">Time</span>
           </div>
 
           {/* Trades List */}
-          <div className="overflow-y-auto max-h-[200px]">
+          <div className="overflow-y-auto max-h-[150px] sm:max-h-[200px]">
             {trades.length === 0 ? (
-              <div className="px-3 py-8 text-center text-gray-500 text-sm">
+              <div className="px-2 sm:px-3 py-6 sm:py-8 text-center text-gray-500 text-xs sm:text-sm">
                 No recent trades
               </div>
             ) : (
               trades.slice(0, maxRows * 2).map((trade) => (
                 <div
                   key={trade.id}
-                  className="grid grid-cols-4 gap-2 px-3 py-1.5 text-xs hover:bg-zinc-800/30 transition-colors"
+                  className="grid grid-cols-4 gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs hover:bg-zinc-800/30 transition-colors"
                 >
-                  <span className={`font-medium ${
+                  <span className={`font-medium truncate ${
                     trade.side === 'buy' ? 'text-green-400' : 'text-red-400'
                   }`}>
                     {formatPrice(trade.price)}
                   </span>
                   <span className="text-center text-white">{trade.shares.toLocaleString()}</span>
-                  <span className="text-center text-gray-400">{formatPrice(trade.total)}</span>
+                  <span className="text-center text-gray-400 hidden xs:block truncate">{formatPrice(trade.total)}</span>
                   <span className="text-right text-gray-500">{formatTime(trade.timestamp)}</span>
                 </div>
               ))
