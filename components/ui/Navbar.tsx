@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Menu, Video, Bell, User, Search, Shield } from 'lucide-react';
+import { Menu, Video, Bell, User, Search, Shield, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function Navbar() {
@@ -55,22 +55,13 @@ export default function Navbar() {
           >
             Channels Market
           </Link>
-          {session?.user?.role === 'CREATOR' && (
-            <Link 
-              href="/dashboard/creator" 
-              className="px-4 py-2 text-sm font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
-            >
-              Creator Studio
-            </Link>
-          )}
-          {session?.user?.role === 'INVESTOR' && (
-            <Link 
-              href="/dashboard/investor" 
-              className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
-            >
-              Dashboard
-            </Link>
-          )}
+          <Link
+            href="/exchange"
+            className="px-4 py-2 text-lg font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors flex items-center gap-2"
+          >
+            <TrendingUp className="w-4 h-4" />
+            Exchange
+          </Link>  
           {session?.user?.role === 'INVESTOR' && (
             <Link 
               href="/trading/portfolio" 
@@ -130,6 +121,18 @@ export default function Navbar() {
                         View Profile
                       </button>
                       <button
+                        onClick={() => router.push('/dashboard/investor')}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-colors"
+                      >
+                        Dashboard
+                      </button>
+                      <button
+                      onClick={()=>router.push('/dashboard/creator')}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white transition-colors"
+                      >
+                        Creator Studio
+                      </button>
+                      <button
                         onClick={() => signOut()}
                         className="w-full px-3 py-2 text-left text-sm text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-b-lg transition-colors"
                       >
@@ -178,6 +181,14 @@ export default function Navbar() {
               onClick={() => setIsMenuOpen(false)}
             >
               Search Your Creator
+            </Link>
+            <Link
+              href="/exchange"
+              className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-zinc-800/50 hover:text-white rounded-lg transition-colors"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Exchange
             </Link>
             {session?.user?.role === 'CREATOR' && (
               <Link

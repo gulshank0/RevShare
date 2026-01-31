@@ -116,6 +116,8 @@ model Offering {
   investments     Investment[]
   sellOrders      SellOrder[]
   trades          Trade[]
+  escrowVault     EscrowVault?
+  shareTokens     ShareToken[]
   
   @@map("offerings")
 }
@@ -450,4 +452,208 @@ enum TradeStatus {
   COMPLETED
   FAILED
   CANCELLED
+}
+
+// ============================================
+// DECENTRALIZED EXCHANGE (DEX) MODELS
+// ============================================
+
+// DEX Escrow Vault - Neutral third-party holding for revenue
+model EscrowVault {
+  id                String          @id @default(cuid())
+  offeringId        String          @unique
+  totalBalance      Float           @default(0)    // Total funds held in escrow
+  pendingRelease    Float           @default(0)    // Funds pending distribution
+  totalDistributed  Float           @default(0)    // Historical total distributed
+  creatorShare      Float           @default(0)    // Creator's unclaimed balance
+  investorPool      Float           @default(0)    // Total investor unclaimed balance
+  lastRevenueAt     DateTime?                       // Last revenue deposit
+  lastDistributionAt DateTime?                      // Last distribution
+  status            EscrowStatus    @default(ACTIVE)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  
+  // Relations
+  offering          Offering        @relation(fields: [offeringId], references: [id])
+  deposits          EscrowDeposit[]
+  distributions     EscrowDistribution[]
+  claims            EscrowClaim[]
+  auditLog          EscrowAuditLog[]
+  
+  @@map("escrow_vaults")
+}
+
+// Revenue deposits into escrow (from YouTube monetization)
+model EscrowDeposit {
+  id              String            @id @default(cuid())
+  vaultId         String
+  amount          Float
+  source          RevenueSource
+  externalRef     String?           // YouTube payment reference
+  revenueMonth    String            // YYYY-MM format
+  verifiedAt      DateTime?         // When revenue was verified
+  status          DepositStatus     @default(PENDING)
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  
+  // Relations
+  vault           EscrowVault       @relation(fields: [vaultId], references: [id])
+  
+  @@index([vaultId])
+  @@index([revenueMonth])
+  @@map("escrow_deposits")
+}
+
+// Automatic distribution records
+model EscrowDistribution {
+  id                  String              @id @default(cuid())
+  vaultId             String
+  depositId           String?
+  totalAmount         Float               // Total being distributed
+  creatorAmount       Float               // Creator's share
+  investorAmount      Float               // Total investor share
+  platformFee         Float               // Platform fee deducted
+  distributionRatio   Json                // Snapshot of ownership at distribution time
+  status              DistributionStatus  @default(PENDING)
+  executedAt          DateTime?
+  createdAt           DateTime            @default(now())
+  
+  // Relations
+  vault               EscrowVault         @relation(fields: [vaultId], references: [id])
+  claims              EscrowClaim[]
+  
+  @@index([vaultId])
+  @@map("escrow_distributions")
+}
+
+// Individual claims by creators/investors
+model EscrowClaim {
+  id                String          @id @default(cuid())
+  vaultId           String
+  distributionId    String?
+  userId            String
+  claimantType      ClaimantType
+  amount            Float
+  shares            Int?            // Number of shares at claim time
+  ownershipPercent  Float           // Ownership percentage at claim time
+  status            ClaimStatus     @default(AVAILABLE)
+  claimedAt         DateTime?
+  expiresAt         DateTime?       // Claims can expire
+  transactionHash   String?         // Blockchain tx hash if applicable
+  createdAt         DateTime        @default(now())
+  
+  // Relations
+  vault             EscrowVault     @relation(fields: [vaultId], references: [id])
+  distribution      EscrowDistribution? @relation(fields: [distributionId], references: [id])
+  
+  @@index([userId])
+  @@index([vaultId])
+  @@index([status])
+  @@map("escrow_claims")
+}
+
+// Immutable audit log for all escrow operations
+model EscrowAuditLog {
+  id              String          @id @default(cuid())
+  vaultId         String
+  action          EscrowAction
+  actorId         String?         // null for system actions
+  actorType       String          // "SYSTEM", "CREATOR", "INVESTOR", "ADMIN"
+  amount          Float?
+  previousState   Json?           // State before action
+  newState        Json?           // State after action
+  ipAddress       String?
+  signature       String?         // Cryptographic signature of the action
+  createdAt       DateTime        @default(now())
+  
+  // Relations
+  vault           EscrowVault     @relation(fields: [vaultId], references: [id])
+  
+  @@index([vaultId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("escrow_audit_logs")
+}
+
+// Token representation of investment shares (for future blockchain integration)
+model ShareToken {
+  id              String          @id @default(cuid())
+  offeringId      String
+  holderId        String
+  tokenSymbol     String          // e.g., "YT-PEWDS-001"
+  shares          Int
+  mintedAt        DateTime        @default(now())
+  burnedAt        DateTime?
+  transferHistory Json?           // History of transfers
+  contractAddress String?         // Future: Actual token contract
+  tokenId         String?         // Future: NFT token ID
+  
+  // Relations
+  offering        Offering        @relation(fields: [offeringId], references: [id])
+  
+  @@unique([offeringId, holderId])
+  @@index([holderId])
+  @@index([tokenSymbol])
+  @@map("share_tokens")
+}
+
+// Enums for DEX
+enum EscrowStatus {
+  ACTIVE
+  PAUSED
+  CLOSED
+  DISPUTED
+}
+
+enum DepositStatus {
+  PENDING
+  VERIFIED
+  DISTRIBUTED
+  FAILED
+  REFUNDED
+}
+
+enum DistributionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  DISPUTED
+}
+
+enum ClaimStatus {
+  AVAILABLE
+  CLAIMED
+  EXPIRED
+  CANCELLED
+}
+
+enum ClaimantType {
+  CREATOR
+  INVESTOR
+}
+
+enum RevenueSource {
+  YOUTUBE_ADSENSE
+  YOUTUBE_PREMIUM
+  YOUTUBE_MEMBERSHIPS
+  YOUTUBE_SUPER_CHAT
+  SPONSORSHIP
+  MERCHANDISE
+  OTHER
+}
+
+enum EscrowAction {
+  VAULT_CREATED
+  DEPOSIT_RECEIVED
+  DEPOSIT_VERIFIED
+  DISTRIBUTION_INITIATED
+  DISTRIBUTION_COMPLETED
+  CLAIM_AVAILABLE
+  CLAIM_PROCESSED
+  CLAIM_EXPIRED
+  VAULT_PAUSED
+  VAULT_RESUMED
+  DISPUTE_RAISED
+  DISPUTE_RESOLVED
 }

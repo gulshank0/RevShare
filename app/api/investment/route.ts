@@ -141,8 +141,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const searchParams = request.nextUrl.searchParams;
+    const offeringId = searchParams.get('offeringId');
+
+    const whereClause: any = { investorId: session.user.id };
+    if (offeringId) {
+      whereClause.offeringId = offeringId;
+    }
+
     const investments = await prisma.investment.findMany({
-      where: { investorId: session.user.id },
+      where: whereClause,
       include: {
         offering: {
           include: {

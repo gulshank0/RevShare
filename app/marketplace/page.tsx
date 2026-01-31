@@ -168,11 +168,19 @@ export default function MarketplacePage() {
               {/* Content */}
               <div className="p-4 space-y-3">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shrink-0">
-                    <span className="text-white font-bold text-sm">
-                      {offering.channel.channelName[0]?.toUpperCase()}
-                    </span>
-                  </div>
+                  {offering.channel.analytics?.profileImage ? (
+                    <img 
+                      src={offering.channel.analytics.profileImage} 
+                      alt={offering.channel.channelName}
+                      className="w-10 h-10 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shrink-0">
+                      <span className="text-white font-bold text-sm">
+                        {offering.channel.channelName[0]?.toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-white line-clamp-2 group-hover:text-red-400 transition-colors">
                       {offering.title}

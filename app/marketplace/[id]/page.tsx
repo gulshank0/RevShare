@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Youtube, TrendingUp, Users, IndianRupee, Clock, Shield, Play, Tag, ShoppingCart, Wallet, Check, AlertCircle, X } from 'lucide-react';
+import { ArrowLeft, Youtube, TrendingUp, Users, IndianRupee, Clock, Shield, Play, Tag, ShoppingCart, Wallet, Check, AlertCircle, X, TrendingDown } from 'lucide-react';
 import Link from 'next/link';
 
 interface SellOrder {
@@ -20,12 +20,20 @@ interface SellOrder {
   };
 }
 
+interface UserInvestment {
+  id: string;
+  shares: number;
+  totalAmount: number;
+  status: string;
+}
+
 export default function OfferingDetailPage() {
   const { data: session } = useSession();
   const params = useParams();
   const router = useRouter();
   const [offering, setOffering] = useState<any>(null);
   const [sellOrders, setSellOrders] = useState<SellOrder[]>([]);
+  const [userInvestments, setUserInvestments] = useState<UserInvestment[]>([]);
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [shares, setShares] = useState(1);
@@ -33,14 +41,30 @@ export default function OfferingDetailPage() {
   const [selectedOrder, setSelectedOrder] = useState<SellOrder | null>(null);
   const [secondaryShares, setSecondaryShares] = useState(1);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+  // Tab state and sell form state
+  const [activeTab, setActiveTab] = useState<'buy' | 'sell'>('buy');
+  const [selectedInvestment, setSelectedInvestment] = useState<UserInvestment | null>(null);
+  const [sellShares, setSellShares] = useState(1);
+  const [sellPrice, setSellPrice] = useState(0);
+  const [minSellShares, setMinSellShares] = useState(1);
+  const [listing, setListing] = useState(false);
+  const [userSellOrders, setUserSellOrders] = useState<SellOrder[]>([]);
 
   useEffect(() => {
     if (params.id) {
       fetchOffering();
       fetchSellOrders();
       fetchWallet();
+      fetchUserInvestments();
     }
   }, [params.id]);
+
+  useEffect(() => {
+    if (session?.user?.id && params.id) {
+      fetchUserSellOrders();
+    }
+  }, [session?.user?.id, params.id]);
 
   const fetchOffering = async () => {
     try {
@@ -48,6 +72,7 @@ export default function OfferingDetailPage() {
       const data = await res.json();
       if (data.success) {
         setOffering(data.offering);
+        setSellPrice(data.offering.pricePerShare);
       }
     } catch (error) {
       console.error('Failed to fetch offering:', error);
@@ -65,6 +90,36 @@ export default function OfferingDetailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch sell orders:', error);
+    }
+  };
+
+  const fetchUserSellOrders = async () => {
+    try {
+      const res = await fetch(`/api/trading/sell-orders?offeringId=${params.id}&myOrders=true`);
+      const data = await res.json();
+      if (data.success) {
+        setUserSellOrders(data.sellOrders);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user sell orders:', error);
+    }
+  };
+
+  const fetchUserInvestments = async () => {
+    try {
+      const res = await fetch(`/api/investment?offeringId=${params.id}`);
+      const data = await res.json();
+      if (data.success && data.investments) {
+        const confirmedInvestments = data.investments.filter(
+          (inv: UserInvestment) => inv.status === 'CONFIRMED'
+        );
+        setUserInvestments(confirmedInvestments);
+        if (confirmedInvestments.length > 0) {
+          setSelectedInvestment(confirmedInvestments[0]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch user investments:', error);
     }
   };
 
@@ -144,6 +199,7 @@ export default function OfferingDetailPage() {
         fetchSellOrders();
         fetchWallet();
         fetchOffering();
+        fetchUserInvestments();
       } else {
         setMessage({ type: 'error', text: data.error || 'Trade failed' });
       }
@@ -155,6 +211,73 @@ export default function OfferingDetailPage() {
       setTimeout(() => setMessage(null), 5000);
     }
   };
+
+  const handleCreateSellOrder = async () => {
+    if (!selectedInvestment) return;
+    
+    setListing(true);
+    try {
+      const res = await fetch('/api/trading/sell-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          investmentId: selectedInvestment.id,
+          shares: sellShares,
+          pricePerShare: sellPrice,
+          minShares: minSellShares,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: data.message || 'Sell order created successfully!' });
+        setSellShares(1);
+        fetchSellOrders();
+        fetchUserSellOrders();
+        fetchUserInvestments();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to create sell order' });
+      }
+    } catch (error) {
+      console.error('Create sell order error:', error);
+      setMessage({ type: 'error', text: 'Failed to create sell order' });
+    } finally {
+      setListing(false);
+      setTimeout(() => setMessage(null), 5000);
+    }
+  };
+
+  const handleCancelSellOrder = async (orderId: string) => {
+    try {
+      const res = await fetch(`/api/trading/sell-orders/${orderId}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Sell order cancelled successfully!' });
+        fetchSellOrders();
+        fetchUserSellOrders();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Failed to cancel sell order' });
+      }
+    } catch (error) {
+      console.error('Cancel sell order error:', error);
+      setMessage({ type: 'error', text: 'Failed to cancel sell order' });
+    }
+    setTimeout(() => setMessage(null), 5000);
+  };
+
+  // Calculate available shares for selling (excluding already listed shares)
+  const getAvailableSharesForSale = (investment: UserInvestment) => {
+    const listedShares = userSellOrders
+      .filter(order => order.status === 'ACTIVE' || order.status === 'PARTIALLY_FILLED')
+      .reduce((sum, order) => sum + order.sharesRemaining, 0);
+    return investment.shares - listedShares;
+  };
+
+  // Total shares owned by user
+  const totalUserShares = userInvestments.reduce((sum, inv) => sum + inv.shares, 0);
 
   if (loading) {
     return (
@@ -332,201 +455,440 @@ export default function OfferingDetailPage() {
           {/* Investment Panel */}
           <div className="lg:col-span-1">
             <div className="youtube-card p-6 sticky top-6">
-              <h3 className="text-xl font-semibold text-white mb-2">Make an Investment</h3>
-              <p className="text-gray-400 text-sm mb-6">Choose your investment amount</p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-white mb-2 block">
-                    Number of Shares
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max={offering.availableShares}
-                    value={shares}
-                    onChange={(e) => setShares(Math.max(1, Number.parseInt(e.target.value) || 1))}
-                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
-                  />
-                  <p className="text-sm text-gray-400 mt-2">
-                    Max: {offering.availableShares} shares available
-                  </p>
+              {/* Tab Navigation - Only show if user has shares */}
+              {totalUserShares > 0 && (
+                <div className="flex mb-6 bg-zinc-800 rounded-lg p-1 border border-zinc-700">
+                  <button
+                    onClick={() => setActiveTab('buy')}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === 'buy'
+                        ? 'bg-red-600 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <TrendingUp className="w-4 h-4 inline mr-2" />
+                    Buy
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('sell')}
+                    className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === 'sell'
+                        ? 'bg-red-600 text-white'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <TrendingDown className="w-4 h-4 inline mr-2" />
+                    Sell
+                  </button>
                 </div>
+              )}
 
-                <div className="p-4 bg-zinc-800 border border-zinc-700 rounded-lg space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Shares</span>
-                    <span className="font-medium text-white">{shares}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Price per Share</span>
-                    <span className="font-medium text-white">₹{offering.pricePerShare}</span>
-                  </div>
-                  <div className="border-t border-zinc-700 pt-3 flex justify-between">
-                    <span className="font-semibold text-white">Total Investment</span>
-                    <span className="font-bold text-xl text-white">
-                      ₹{totalAmount.toLocaleString('en-IN')}
-                    </span>
+              {/* User's Holdings Info */}
+              {totalUserShares > 0 && (
+                <div className="mb-6 p-3 bg-green-600/10 border border-green-600/30 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-400">Your Holdings</span>
+                    <Badge className="bg-green-600/20 text-green-400 border-green-600/30">
+                      {totalUserShares} shares
+                    </Badge>
                   </div>
                 </div>
+              )}
 
-                {totalAmount < offering.minInvestment && (
-                  <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
-                    <p className="text-sm text-red-400">
-                      Minimum investment is ₹{offering.minInvestment}
-                    </p>
-                  </div>
-                )}
+              {/* Buy Tab Content */}
+              {activeTab === 'buy' && (
+                <>
+                  <h3 className="text-xl font-semibold text-white mb-2">Make an Investment</h3>
+                  <p className="text-gray-400 text-sm mb-6">Choose your investment amount</p>
 
-                {offering.maxInvestment && totalAmount > offering.maxInvestment && (
-                  <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
-                    <p className="text-sm text-red-400">
-                      Maximum investment is ₹{offering.maxInvestment}
-                    </p>
-                  </div>
-                )}
-
-                {/* Wallet Balance Info */}
-                {wallet && (
-                  <div className="p-3 bg-zinc-800 border border-zinc-700 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-400 flex items-center gap-2">
-                        <Wallet className="w-4 h-4" />
-                        Wallet Balance
-                      </span>
-                      <span className="font-semibold text-white">
-                        ₹{wallet.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </span>
-                    </div>
-                    {wallet.balance >= totalAmount && (
-                      <p className="text-xs text-green-400 mt-1">
-                        ✓ Sufficient balance for this investment
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-white mb-2 block">
+                        Number of Shares
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={offering.availableShares}
+                        value={shares}
+                        onChange={(e) => setShares(Math.max(0, Number.parseInt(e.target.value)||0))}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
+                      />
+                      <p className="text-sm text-gray-400 mt-2">
+                        Max: {offering.availableShares} shares available
                       </p>
-                    )}
-                  </div>
-                )}
+                    </div>
 
-                <Button
-                  className="youtube-button w-full text-base py-6"
-                  onClick={handleInvest}
-                  disabled={
-                    investing ||
-                    offering.availableShares === 0 ||
-                    totalAmount < offering.minInvestment ||
-                    (offering.maxInvestment && totalAmount > offering.maxInvestment)
-                  }
-                >
-                  {investing ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Processing...
-                    </>
-                  ) : offering.availableShares === 0 ? (
-                    'Sold Out'
-                  ) : wallet && wallet.balance >= totalAmount ? (
-                    'Invest from Wallet'
-                  ) : (
-                    'Invest Now'
-                  )}
-                </Button>
-
-                <div className="pt-4 border-t border-zinc-700 space-y-2 text-xs text-gray-400">
-                  <p className="flex items-center gap-2">
-                    <Clock className="h-3 w-3" />
-                    Expected monthly payouts starting next month
-                  </p>
-                  <p className="flex items-center gap-2">
-                    <IndianRupee className="h-3 w-3" />
-                    {offering.sharePercentage}% of channel revenue for {offering.duration} months
-                  </p>
-                </div>
-              </div>
-
-              {/* Secondary Market */}
-              {sellOrders.length > 0 && (
-                <div className="mt-6 pt-6 border-t border-zinc-800">
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-                    <Tag className="w-5 h-5 text-red-600" />
-                    Secondary Market
-                  </h4>
-                  <p className="text-sm text-gray-400 mb-4">Buy from other investors</p>
-                  
-                  <div className="space-y-3">
-                    {sellOrders.slice(0, 3).map((order) => (
-                      <div
-                        key={order.id}
-                        className={`p-3 rounded-lg border transition-colors cursor-pointer ${
-                          selectedOrder?.id === order.id 
-                            ? 'bg-red-600/10 border-red-600/30' 
-                            : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600'
-                        }`}
-                        onClick={() => {
-                          setSelectedOrder(order);
-                          setSecondaryShares(order.minShares);
-                        }}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <span className="font-semibold text-white">{order.sharesRemaining} shares</span>
-                            <span className="text-gray-400 mx-2">@</span>
-                            <span className="font-semibold text-green-400">
-                              ₹{order.pricePerShare.toLocaleString('en-IN')}
-                            </span>
-                          </div>
-                          {order.pricePerShare < offering.pricePerShare && (
-                            <Badge className="bg-green-600/20 text-green-400 border-green-600/30 text-xs">
-                              {(((offering.pricePerShare - order.pricePerShare) / offering.pricePerShare) * 100).toFixed(1)}% below
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Min: {order.minShares} shares
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {selectedOrder && (
-                    <div className="mt-4 p-4 bg-zinc-800 rounded-lg space-y-3">
-                      <div>
-                        <label className="text-sm font-medium text-white mb-2 block">
-                          Shares to Buy
-                        </label>
-                        <input
-                          type="number"
-                          min={selectedOrder.minShares}
-                          max={selectedOrder.sharesRemaining}
-                          value={secondaryShares}
-                          onChange={(e) => setSecondaryShares(
-                            Math.max(
-                              selectedOrder.minShares,
-                              Math.min(selectedOrder.sharesRemaining, Number.parseInt(e.target.value) || selectedOrder.minShares)
-                            )
-                          )}
-                          className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600"
-                        />
+                    <div className="p-4 bg-zinc-800 border border-zinc-700 rounded-lg space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Shares</span>
+                        <span className="font-medium text-white">{shares}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Total</span>
-                        <span className="font-bold text-white">
-                          ₹{(secondaryShares * selectedOrder.pricePerShare).toLocaleString('en-IN')}
+                        <span className="text-gray-400">Price per Share</span>
+                        <span className="font-medium text-white">₹{offering.pricePerShare}</span>
+                      </div>
+                      <div className="border-t border-zinc-700 pt-3 flex justify-between">
+                        <span className="font-semibold text-white">Total Investment</span>
+                        <span className="font-bold text-xl text-white">
+                          ₹{totalAmount.toLocaleString('en-IN')}
                         </span>
                       </div>
-                      <Button
-                        className="youtube-button w-full"
-                        onClick={handleBuyFromOrder}
-                        disabled={investing || selectedOrder.seller.id === session?.user?.id}
-                      >
-                        {investing ? 'Processing...' : (
-                          <>
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            Buy from Seller
-                          </>
+                    </div>
+
+                    {totalAmount < offering.minInvestment && (
+                      <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
+                        <p className="text-sm text-red-400">
+                          Minimum investment is ₹{offering.minInvestment}
+                        </p>
+                      </div>
+                    )}
+
+                    {offering.maxInvestment && totalAmount > offering.maxInvestment && (
+                      <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
+                        <p className="text-sm text-red-400">
+                          Maximum investment is ₹{offering.maxInvestment}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Wallet Balance Info */}
+                    {wallet && (
+                      <div className="p-3 bg-zinc-800 border border-zinc-700 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-400 flex items-center gap-2">
+                            <Wallet className="w-4 h-4" />
+                            Wallet Balance
+                          </span>
+                          <span className="font-semibold text-white">
+                            ₹{wallet.balance?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        {wallet.balance >= totalAmount && (
+                          <p className="text-xs text-green-400 mt-1">
+                            ✓ Sufficient balance for this investment
+                          </p>
                         )}
-                      </Button>
+                      </div>
+                    )}
+
+                    <Button
+                      className="youtube-button w-full text-base py-6"
+                      onClick={handleInvest}
+                      disabled={
+                        investing ||
+                        offering.availableShares === 0 ||
+                        totalAmount < offering.minInvestment ||
+                        (offering.maxInvestment && totalAmount > offering.maxInvestment)
+                      }
+                    >
+                      {investing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Processing...
+                        </>
+                      ) : offering.availableShares === 0 ? (
+                        'Sold Out'
+                      ) : wallet && wallet.balance >= totalAmount ? (
+                        'Invest from Wallet'
+                      ) : (
+                        'Invest Now'
+                      )}
+                    </Button>
+
+                    <div className="pt-4 border-t border-zinc-700 space-y-2 text-xs text-gray-400">
+                      <p className="flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        Expected monthly payouts starting next month
+                      </p>
+                      <p className="flex items-center gap-2">
+                        <IndianRupee className="h-3 w-3" />
+                        {offering.sharePercentage}% of channel revenue for {offering.duration} months
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Secondary Market */}
+                  {sellOrders.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-zinc-800">
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                        <Tag className="w-5 h-5 text-red-600" />
+                        Secondary Market
+                      </h4>
+                      <p className="text-sm text-gray-400 mb-4">Buy from other investors</p>
+                      
+                      <div className="space-y-3">
+                        {sellOrders.slice(0, 3).map((order) => (
+                          <div
+                            key={order.id}
+                            className={`p-3 rounded-lg border transition-colors cursor-pointer ${
+                              selectedOrder?.id === order.id 
+                                ? 'bg-red-600/10 border-red-600/30' 
+                                : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600'
+                            }`}
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setSecondaryShares(order.minShares);
+                            }}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="font-semibold text-white">{order.sharesRemaining} shares</span>
+                                <span className="text-gray-400 mx-2">@</span>
+                                <span className="font-semibold text-green-400">
+                                  ₹{order.pricePerShare.toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              {order.pricePerShare < offering.pricePerShare && (
+                                <Badge className="bg-green-600/20 text-green-400 border-green-600/30 text-xs">
+                                  {(((offering.pricePerShare - order.pricePerShare) / offering.pricePerShare) * 100).toFixed(1)}% below
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Min: {order.minShares} shares
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {selectedOrder && (
+                        <div className="mt-4 p-4 bg-zinc-800 rounded-lg space-y-3">
+                          <div>
+                            <label className="text-sm font-medium text-white mb-2 block">
+                              Shares to Buy
+                            </label>
+                            <input
+                              type="number"
+                              min={selectedOrder.minShares}
+                              max={selectedOrder.sharesRemaining}
+                              value={secondaryShares}
+                              onChange={(e) => setSecondaryShares(
+                                Math.max(
+                                  selectedOrder.minShares,
+                                  Math.min(selectedOrder.sharesRemaining, Number.parseInt(e.target.value) || selectedOrder.minShares)
+                                )
+                              )}
+                              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600"
+                            />
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Total</span>
+                            <span className="font-bold text-white">
+                              ₹{(secondaryShares * selectedOrder.pricePerShare).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                          <Button
+                            className="youtube-button w-full"
+                            onClick={handleBuyFromOrder}
+                            disabled={investing || selectedOrder.seller.id === session?.user?.id}
+                          >
+                            {investing ? 'Processing...' : (
+                              <>
+                                <ShoppingCart className="w-4 h-4 mr-2" />
+                                Buy from Seller
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+                </>
+              )}
+
+              {/* Sell Tab Content */}
+              {activeTab === 'sell' && totalUserShares > 0 && (
+                <>
+                  <h3 className="text-xl font-semibold text-white mb-2">Sell Your Shares</h3>
+                  <p className="text-gray-400 text-sm mb-6">List your shares on the secondary market</p>
+
+                  <div className="space-y-4">
+                    {/* Investment Selection (if multiple investments) */}
+                    {userInvestments.length > 1 && (
+                      <div>
+                        <label className="text-sm font-medium text-white mb-2 block">
+                          Select Investment
+                        </label>
+                        <select
+                          value={selectedInvestment?.id || ''}
+                          onChange={(e) => {
+                            const inv = userInvestments.find(i => i.id === e.target.value);
+                            setSelectedInvestment(inv || null);
+                            setSellShares(1);
+                          }}
+                          className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
+                        >
+                          {userInvestments.map((inv) => (
+                            <option key={inv.id} value={inv.id}>
+                              {inv.shares} shares (₹{inv.totalAmount.toLocaleString('en-IN')})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+
+                    {selectedInvestment && (
+                      <>
+                        <div className="p-3 bg-zinc-800 border border-zinc-700 rounded-lg">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-gray-400">Available to Sell</span>
+                            <span className="font-semibold text-white">
+                              {getAvailableSharesForSale(selectedInvestment)} shares
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-white mb-2 block">
+                            Number of Shares to Sell
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={getAvailableSharesForSale(selectedInvestment)}
+                            value={sellShares}
+                            onChange={(e) => setSellShares(Math.max(1, Math.min(
+                              getAvailableSharesForSale(selectedInvestment),
+                              Number.parseInt(e.target.value) || 1
+                            )))}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-white mb-2 block">
+                            Price per Share (₹)
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            step="0.01"
+                            value={sellPrice}
+                            onChange={(e) => setSellPrice(Math.max(1, Number.parseFloat(e.target.value) || 1))}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                          <p className="text-xs text-gray-400 mt-1">
+                            Original price: ₹{offering.pricePerShare}
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="text-sm font-medium text-white mb-2 block">
+                            Minimum Shares per Purchase
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={sellShares}
+                            value={minSellShares}
+                            onChange={(e) => setMinSellShares(Math.max(1, Math.min(
+                              sellShares,
+                              Number.parseInt(e.target.value) || 1
+                            )))}
+                            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:border-red-600 transition-colors"
+                          />
+                        </div>
+
+                        <div className="p-4 bg-zinc-800 border border-zinc-700 rounded-lg space-y-3">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Shares to List</span>
+                            <span className="font-medium text-white">{sellShares}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-400">Price per Share</span>
+                            <span className="font-medium text-white">₹{sellPrice}</span>
+                          </div>
+                          <div className="border-t border-zinc-700 pt-3 flex justify-between">
+                            <span className="font-semibold text-white">Total Listing Value</span>
+                            <span className="font-bold text-xl text-white">
+                              ₹{(sellShares * sellPrice).toLocaleString('en-IN')}
+                            </span>
+                          </div>
+                        </div>
+
+                        {sellPrice < offering.pricePerShare && (
+                          <div className="p-3 bg-yellow-600/10 border border-yellow-600/30 rounded-lg">
+                            <p className="text-sm text-yellow-400">
+                              ⚠️ Your price is {(((offering.pricePerShare - sellPrice) / offering.pricePerShare) * 100).toFixed(1)}% below the original price
+                            </p>
+                          </div>
+                        )}
+
+                        {getAvailableSharesForSale(selectedInvestment) === 0 ? (
+                          <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg">
+                            <p className="text-sm text-red-400">
+                              All your shares are already listed for sale
+                            </p>
+                          </div>
+                        ) : (
+                          <Button
+                            className="youtube-button w-full text-base py-6"
+                            onClick={handleCreateSellOrder}
+                            disabled={listing || sellShares < 1 || sellPrice < 1}
+                          >
+                            {listing ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                                Creating Listing...
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="w-4 h-4 mr-2" />
+                                List Shares for Sale
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {/* User's Active Sell Orders */}
+                    {userSellOrders.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-zinc-800">
+                        <h4 className="text-lg font-semibold text-white mb-4">Your Active Listings</h4>
+                        <div className="space-y-3">
+                          {userSellOrders.map((order) => (
+                            <div
+                              key={order.id}
+                              className="p-3 bg-zinc-800 border border-zinc-700 rounded-lg"
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <span className="font-semibold text-white">{order.sharesRemaining} shares</span>
+                                  <span className="text-gray-400 mx-2">@</span>
+                                  <span className="font-semibold text-green-400">
+                                    ₹{order.pricePerShare.toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                                <Badge className={`text-xs ${
+                                  order.status === 'ACTIVE' 
+                                    ? 'bg-green-600/20 text-green-400 border-green-600/30'
+                                    : order.status === 'PARTIALLY_FILLED'
+                                    ? 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30'
+                                    : 'bg-gray-600/20 text-gray-400 border-gray-600/30'
+                                }`}>
+                                  {order.status.replace('_', ' ')}
+                                </Badge>
+                              </div>
+                              {(order.status === 'ACTIVE' || order.status === 'PARTIALLY_FILLED') && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="mt-2 text-red-400 hover:text-red-300 hover:bg-red-600/10 w-full"
+                                  onClick={() => handleCancelSellOrder(order.id)}
+                                >
+                                  <X className="w-4 h-4 mr-1" />
+                                  Cancel Listing
+                                </Button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </div>
           </div>

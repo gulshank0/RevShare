@@ -6,24 +6,55 @@ import { prisma } from '@/lib/prisma';
 // Platform fee percentage (e.g., 2.5%)
 const PLATFORM_FEE_PERCENT = 2.5;
 
-// GET - List trades (user's trade history)
+// GET - List trades (user's trade history or market trades for an offering)
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
+    const searchParams = req.nextUrl.searchParams;
+    const role = searchParams.get('role'); // 'buyer' | 'seller' | 'all'
+    const status = searchParams.get('status');
+    const offeringId = searchParams.get('offeringId');
+    const market = searchParams.get('market'); // 'true' to get all trades for an offering (public market data)
+
+    // Build where clause
+    const where: any = {};
+
+    // If requesting market data for an offering, return all trades for that offering (public data)
+    if (market === 'true' && offeringId) {
+      where.offeringId = offeringId;
+      where.status = 'COMPLETED';
+
+      const trades = await prisma.trade.findMany({
+        where,
+        select: {
+          id: true,
+          shares: true,
+          pricePerShare: true,
+          totalAmount: true,
+          status: true,
+          createdAt: true,
+          buyerId: true,
+          sellerId: true,
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 50, // Limit to recent 50 trades for market view
+      });
+
+      return NextResponse.json({
+        success: true,
+        trades,
+      });
+    }
+
+    // For user-specific trade history, require authentication
     if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
       );
     }
-
-    const searchParams = req.nextUrl.searchParams;
-    const role = searchParams.get('role'); // 'buyer' | 'seller' | 'all'
-    const status = searchParams.get('status');
-    const offeringId = searchParams.get('offeringId');
-
-    // Build where clause
-    const where: any = {};
 
     if (role === 'buyer') {
       where.buyerId = session.user.id;
