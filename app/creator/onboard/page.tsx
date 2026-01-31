@@ -1,124 +1,52 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { 
-  CheckCircle, 
-  Video, 
-  IndianRupee, 
-  Users, 
-  AlertCircle, 
-  Loader2,
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Video, IndianRupee, Users, Shield, AlertCircle, Loader2 } from 'lucide-react';
 
-// Types
+interface StepData {
+  kycCompleted: boolean;
+  channelConnected: boolean;
+  offeringCreated: boolean;
+}
+
 interface ChannelData {
   id: string;
   youtubeChannelId: string;
   channelName: string;
-  analytics: {
-    subscriberCount?: number;
-    viewCount?: number;
-    videoCount?: number;
-    title?: string;
-  };
+  analytics: any;
 }
-
-interface OnboardingState {
-  channelConnected: boolean;
-  offeringCreated: boolean;
-  channel: ChannelData | null;
-}
-
-// Helper function to get step class names
-const getStepClassName = (isActive: boolean, isPast: boolean): string => {
-  if (isActive) return 'bg-red-600/10 border border-red-600/50';
-  if (isPast) return 'bg-green-600/10 border border-green-600/50';
-  return 'bg-zinc-900 border border-zinc-800';
-};
-
-const getStepIconClassName = (isActive: boolean, isPast: boolean): string => {
-  if (isPast) return 'bg-green-600';
-  if (isActive) return 'bg-red-600';
-  return 'bg-zinc-800';
-};
-
-const getStepTextClassName = (isActive: boolean, isPast: boolean): string => {
-  if (isPast) return 'text-green-400';
-  if (isActive) return 'text-red-400';
-  return 'text-gray-600';
-};
-
-// Skeleton Loader Component
-const SkeletonCard = () => (
-  <div className="youtube-card p-6 animate-pulse">
-    <div className="h-6 bg-zinc-800 rounded w-1/3 mb-4"></div>
-    <div className="h-4 bg-zinc-800 rounded w-2/3 mb-2"></div>
-    <div className="h-4 bg-zinc-800 rounded w-1/2"></div>
-  </div>
-);
-
-// Progress Step Component
-const ProgressStep = ({ 
-  step, 
-  current, 
-  completed, 
-  title, 
-  icon: Icon 
-}: { 
-  step: number; 
-  current: number; 
-  completed: boolean; 
-  title: string; 
-  icon: React.ElementType;
-}) => {
-  const isActive = step === current;
-  const isPast = step < current || completed;
-  
-  return (
-    <div className={`flex items-center gap-3 p-4 rounded-lg transition-all ${getStepClassName(isActive, isPast)}`}>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getStepIconClassName(isActive, isPast)}`}>
-        {isPast ? (
-          <CheckCircle className="h-5 w-5 text-white" />
-        ) : (
-          <Icon className={`h-5 w-5 ${isActive ? 'text-white' : 'text-gray-500'}`} />
-        )}
-      </div>
-      <div>
-        <p className={`font-medium ${isPast || isActive ? 'text-white' : 'text-gray-500'}`}>
-          Step {step}
-        </p>
-        <p className={`text-sm ${getStepTextClassName(isActive, isPast)}`}>
-          {title}
-        </p>
-      </div>
-    </div>
-  );
-};
 
 export default function CreatorOnboardPage() {
-  const { data: session, status: authStatus } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  
-  // Core state
   const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Onboarding state
-  const [state, setState] = useState<OnboardingState>({
+  const [stepData, setStepData] = useState<StepData>({
+    kycCompleted: false,
     channelConnected: false,
     offeringCreated: false,
-    channel: null,
   });
-
-  // Form states
+  const [channelData, setChannelData] = useState<ChannelData | null>(null);
+  const [kycData, setKycData] = useState({
+    firstName: '',
+    lastName: '',
+    dateOfBirth: '',
+    phoneNumber: '',
+    street: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: '',
+    documentType: 'drivers_license' as 'passport' | 'drivers_license' | 'national_id',
+    documentNumber: '',
+    documentExpiry: '',
+    taxId: '',
+  });
   const [youtubeChannelId, setYoutubeChannelId] = useState('');
   const [offeringData, setOfferingData] = useState({
     title: '',
@@ -126,151 +54,180 @@ export default function CreatorOnboardPage() {
     sharePercentage: 10,
     totalShares: 1000,
     pricePerShare: 100,
-    minInvestment: 500,
-    maxInvestment: 10000,
+    minInvestment: 100,
+    maxInvestment: 5000,
     duration: 24,
   });
 
-  // Check progress on mount - optimized single call pattern
-  const checkProgress = useCallback(async () => {
-    if (!session?.user) return;
-    
-    try {
-      setLoading(true);
-      
-      // Parallel API calls for better performance
-      const [channelRes, offeringRes] = await Promise.all([
-        fetch('/api/creator/channel'),
-        fetch('/api/creator/offering'),
-      ]);
-
-      const [channelResult, offeringResult] = await Promise.all([
-        channelRes.json(),
-        offeringRes.json(),
-      ]);
-
-      const hasChannel = channelResult.success && channelResult.channels?.length > 0;
-      const hasOffering = offeringResult.success && offeringResult.offerings?.length > 0;
-
-      setState({
-        channelConnected: hasChannel,
-        offeringCreated: hasOffering,
-        channel: hasChannel ? channelResult.channels[0] : null,
-      });
-
-      // Determine current step
-      if (!hasChannel) {
-        setCurrentStep(1);
-      } else if (hasOffering) {
-        setCurrentStep(3);
-      } else {
-        setCurrentStep(2);
-        // Pre-fill offering title from channel name
-        if (channelResult.channels[0]?.channelName) {
-          setOfferingData(prev => ({
-            ...prev,
-            title: `Invest in ${channelResult.channels[0].channelName}`,
-          }));
-        }
-      }
-    } catch (err) {
-      console.error('Progress check error:', err);
-      setError('Failed to load progress. Please refresh.');
-    } finally {
-      setLoading(false);
-    }
-  }, [session?.user]);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const youtubeSuccess = searchParams.get('youtube_success');
-    const youtubeError = searchParams.get('youtube_error');
-    
-    if (youtubeError) {
-      setError(decodeURIComponent(youtubeError));
-      globalThis.history.replaceState({}, '', '/creator/onboard');
-    } else if (youtubeSuccess) {
-      setError('');
-      globalThis.history.replaceState({}, '', '/creator/onboard');
-      // Refresh progress after successful auth
-      checkProgress();
-    }
-  }, [searchParams, checkProgress]);
-
-  // Initial load
+  // Check existing progress on mount
   useEffect(() => {
     if (session?.user) {
       checkProgress();
-    } else if (authStatus !== 'loading') {
+    }
+  }, [session]);
+
+  const getStepStatus = (stepId: number) => {
+    if (stepId === 1) {
+      return stepData.kycCompleted ? 'completed' : currentStep === 1 ? 'current' : 'pending';
+    }
+    if (stepId === 2) {
+      return stepData.channelConnected ? 'completed' : currentStep === 2 ? 'current' : 'pending';
+    }
+    if (stepId === 3) {
+      return stepData.offeringCreated ? 'completed' : currentStep === 3 ? 'current' : 'pending';
+    }
+    return currentStep === 4 ? 'completed' : 'pending';
+  };
+
+  const getBadgeVariant = (status: string) => {
+    if (status === 'completed') return 'default';
+    if (status === 'current') return 'secondary';
+    return 'outline';
+  };
+
+  const getBadgeClassName = (status: string) => {
+    if (status === 'completed') return 'bg-green-600 text-white';
+    if (status === 'current') return 'bg-red-600 text-white';
+    return 'bg-zinc-700 text-gray-400 border-zinc-600';
+  };
+
+  const getBadgeText = (status: string) => {
+    if (status === 'completed') return 'Complete';
+    if (status === 'current') return 'Current';
+    return 'Pending';
+  };
+
+  const checkProgress = async () => {
+    try {
+      setLoading(true);
+      
+      // Check KYC status
+      const kycRes = await fetch('/api/kyc');
+      const kycResult = await kycRes.json();
+      
+      // Check channel status
+      const channelRes = await fetch('/api/creator/channel');
+      const channelResult = await channelRes.json();
+      
+      // Check offering status
+      const offeringRes = await fetch('/api/creator/offering');
+      const offeringResult = await offeringRes.json();
+
+      const progress = {
+        kycCompleted: kycResult.success && kycResult.status === 'VERIFIED',
+        channelConnected: channelResult.success && channelResult.channels?.length > 0,
+        offeringCreated: offeringResult.success && offeringResult.offerings?.length > 0,
+      };
+
+      setStepData(progress);
+
+      if (channelResult.success && channelResult.channels?.length > 0) {
+        setChannelData(channelResult.channels[0]);
+      }
+
+      // Determine current step
+      if (!progress.kycCompleted) {
+        setCurrentStep(1);
+      } else if (!progress.channelConnected) {
+        setCurrentStep(2);
+      } else if (progress.offeringCreated) {
+        setCurrentStep(4);
+      } else {
+        setCurrentStep(3);
+      }
+    } catch (err) {
+      console.error('Progress check error:', err);
+      setError('Failed to load progress. Please refresh the page.');
+    } finally {
       setLoading(false);
     }
-  }, [session?.user, authStatus, checkProgress]);
+  };
 
-  // Connect YouTube Channel
-  const handleChannelConnect = async (e: React.FormEvent) => {
+  const handleKYCSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!youtubeChannelId.trim()) {
-      setError('Please enter your YouTube Channel ID');
-      return;
-    }
-
-    setSubmitting(true);
+    setLoading(true);
     setError('');
 
     try {
-      // First check if we need YouTube OAuth
-      const authCheck = await fetch('/api/auth/youtube');
-      const authResult = await authCheck.json();
-
-      if (!authResult.hasYouTubeAccess && authResult.authUrl) {
-        // Redirect to YouTube OAuth
-        globalThis.location.href = authResult.authUrl;
-        return;
-      }
-
-      // Connect channel
-      const response = await fetch('/api/creator/channel', {
+      const response = await fetch('/api/kyc', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ youtubeChannelId: youtubeChannelId.trim() }),
+        body: JSON.stringify({
+          firstName: kycData.firstName,
+          lastName: kycData.lastName,
+          dateOfBirth: kycData.dateOfBirth,
+          phoneNumber: kycData.phoneNumber,
+          address: {
+            street: kycData.street,
+            city: kycData.city,
+            state: kycData.state,
+            zipCode: kycData.zipCode,
+            country: kycData.country,
+          },
+          identityDocument: {
+            type: kycData.documentType,
+            number: kycData.documentNumber,
+            expiryDate: kycData.documentExpiry,
+          },
+          taxId: kycData.taxId,
+        }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setState(prev => ({
-          ...prev,
-          channelConnected: true,
-          channel: result.channel,
-        }));
-        setOfferingData(prev => ({
-          ...prev,
-          title: `Invest in ${result.channel.channelName || 'My Channel'}`,
-        }));
+        setStepData({ ...stepData, kycCompleted: true });
         setCurrentStep(2);
-      } else if (result.requiresReauth && result.authUrl) {
-        globalThis.location.href = result.authUrl;
       } else {
-        setError(result.error || 'Failed to connect channel');
+        setError(result.error || 'KYC submission failed');
       }
     } catch (err) {
-      console.error('Channel connect error:', err);
-      setError('Failed to connect channel. Please try again.');
+      console.error('KYC submission error:', err);
+      setError('Failed to submit KYC information');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  // Create Offering
+  const handleChannelConnect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/creator/channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ youtubeChannelId }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStepData({ ...stepData, channelConnected: true });
+        setChannelData(result.channel);
+        setCurrentStep(3);
+      } else {
+        setError(result.error || 'Channel verification failed');
+      }
+    } catch (err) {
+      console.error('Channel connection error:', err);
+      setError('Failed to connect YouTube channel');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleOfferingCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!state.channel) {
-      setError('Please connect your channel first');
+    setLoading(true);
+    setError('');
+
+    if (!channelData) {
+      setError('Please connect your YouTube channel first');
+      setLoading(false);
       return;
     }
-
-    setSubmitting(true);
-    setError('');
 
     try {
       const response = await fetch('/api/creator/offering', {
@@ -278,28 +235,58 @@ export default function CreatorOnboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...offeringData,
-          channelId: state.channel.id,
+          channelId: channelData.id,
         }),
       });
 
       const result = await response.json();
 
       if (result.success) {
-        setState(prev => ({ ...prev, offeringCreated: true }));
-        setCurrentStep(3);
+        setStepData({ ...stepData, offeringCreated: true });
+        setCurrentStep(4);
       } else {
-        setError(result.error || 'Failed to create offering');
+        setError(result.error || 'Offering creation failed');
       }
     } catch (err) {
       console.error('Offering creation error:', err);
-      setError('Failed to create offering. Please try again.');
+      setError('Failed to create offering');
     } finally {
-      setSubmitting(false);
+      setLoading(false);
     }
   };
 
-  // Auth loading state
-  if (authStatus === 'loading') {
+  const steps = [
+    {
+      id: 1,
+      title: 'KYC Verification',
+      description: 'Verify your identity and comply with regulations',
+      icon: Shield,
+      status: getStepStatus(1)
+    },
+    {
+      id: 2,
+      title: 'YouTube Verification',
+      description: 'Connect your YouTube channel to get started',
+      icon: Video,
+      status: getStepStatus(2)
+    },
+    {
+      id: 3,
+      title: 'Revenue Share Setup',
+      description: 'Configure your investment offering details',
+      icon: IndianRupee,
+      status: getStepStatus(3)
+    },
+    {
+      id: 4,
+      title: 'Go Live',
+      description: 'Launch your offering to investors',
+      icon: Users,
+      status: getStepStatus(4)
+    }
+  ];
+
+  if (status === 'loading') {
     return (
       <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
         <Loader2 className="h-8 w-8 text-red-600 animate-spin" />
@@ -307,323 +294,297 @@ export default function CreatorOnboardPage() {
     );
   }
 
-  // Not signed in
   if (!session) {
     return (
       <div className="min-h-screen bg-zinc-950 py-16 px-4">
-        <div className="max-w-xl mx-auto text-center space-y-8">
-          <Video className="h-16 w-16 text-red-600 mx-auto" />
-          <h1 className="text-4xl font-bold text-white">
-            Become a Creator
-          </h1>
-          <p className="text-xl text-gray-400">
-            Sign in with Google to start monetizing your YouTube channel
-          </p>
-          <Button 
-            className="youtube-button text-lg px-8 py-4 h-auto" 
-            onClick={() => router.push('/auth/signin?callbackUrl=/creator/onboard')}
-          >
+        <div className="max-w-3xl mx-auto text-center space-y-6">
+          <h1 className="text-4xl font-bold text-white">Sign In Required</h1>
+          <p className="text-xl text-gray-400">Please sign in to start your creator onboarding</p>
+          <Button className="youtube-button text-xl px-8 py-3 h-auto" onClick={() => router.push('/auth/signin')}>
             Sign In with Google
-            <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </div>
       </div>
     );
   }
 
-  // Loading progress
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-zinc-950 py-16 px-4">
-        <div className="max-w-4xl mx-auto space-y-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-white mb-4">
-              Creator Onboarding
-            </h1>
-            <p className="text-gray-400">Loading your progress...</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <SkeletonCard />
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
-          <SkeletonCard />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-zinc-950 py-12 px-4">
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl md:text-5xl font-bold text-white">
+    <div className="min-h-screen bg-zinc-950 py-16 px-4">
+      <div className="max-w-7xl mx-auto space-y-12">
+        <div className="text-center space-y-6">
+          <h1 className="text-4xl md:text-6xl font-bold text-white leading-tight">
             Creator <span className="text-red-600">Onboarding</span>
           </h1>
-          <p className="text-lg text-gray-400 max-w-2xl mx-auto">
-            Connect your channel and create your investment offering in minutes
+          <p className="text-xl md:text-2xl text-gray-400 max-w-3xl mx-auto leading-relaxed">
+            Turn your YouTube success into investment opportunities
           </p>
         </div>
 
         {/* Progress Steps */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <ProgressStep 
-            step={1} 
-            current={currentStep} 
-            completed={state.channelConnected}
-            title="Connect Channel"
-            icon={Video}
-          />
-          <ProgressStep 
-            step={2} 
-            current={currentStep} 
-            completed={state.offeringCreated}
-            title="Create Offering"
-            icon={IndianRupee}
-          />
-          <ProgressStep 
-            step={3} 
-            current={currentStep} 
-            completed={currentStep === 3}
-            title="Go Live"
-            icon={Users}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            const badgeVariant = getBadgeVariant(step.status);
+            const badgeClassName = getBadgeClassName(step.status);
+            const badgeText = getBadgeText(step.status);
+            
+            return (
+              <div key={step.id} className={`youtube-card p-6 ${step.status === 'current' ? 'border border-red-600' : ''}`}>
+                <div className="text-center space-y-4">
+                  <div className="mx-auto">
+                    {step.status === 'completed' ? (
+                      <div className="w-12 h-12 bg-green-600/20 rounded-full flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-green-400" />
+                      </div>
+                    ) : (
+                      <div className={`w-12 h-12 ${step.status === 'current' ? 'bg-red-600/20' : 'bg-zinc-800'} rounded-full flex items-center justify-center`}>
+                        <Icon className={`h-6 w-6 ${step.status === 'current' ? 'text-red-600' : 'text-gray-400'}`} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">{step.title}</h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      {step.description}
+                    </p>
+                  </div>
+                  <Badge 
+                    variant={badgeVariant}
+                    className={badgeClassName}
+                  >
+                    {badgeText}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* Error Display */}
         {error && (
-          <div className="bg-red-950/30 border border-red-600/50 rounded-lg p-4">
+          <div className="youtube-card border-red-600/50 bg-red-950/20 p-4">
             <div className="flex items-center gap-3 text-red-400">
-              <AlertCircle className="h-5 w-5 shrink-0" />
+              <AlertCircle className="h-5 w-5" />
               <p>{error}</p>
-              <button 
-                onClick={() => setError('')}
-                className="ml-auto text-red-400 hover:text-red-300"
-              >
-                ✕
-              </button>
             </div>
           </div>
         )}
 
-        {/* Step 1: Connect YouTube Channel */}
+        {/* Step Content */}
         {currentStep === 1 && (
           <div className="youtube-card">
-            <div className="p-6 md:p-8 border-b border-zinc-800">
-              <div className="flex items-center gap-3 mb-2">
-                <Video className="h-6 w-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-white">Connect Your YouTube Channel</h2>
-              </div>
-              <p className="text-gray-400">
-                Link your channel to enable revenue sharing with investors
+            <div className="p-8 border-b border-zinc-800">
+              <h2 className="text-2xl font-bold text-white">Step 1: KYC Verification</h2>
+              <p className="text-gray-400 text-lg mt-2">
+                We need to verify your identity to comply with financial regulations
               </p>
             </div>
+            <form onSubmit={handleKYCSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">First Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={kycData.firstName}
+                    onChange={(e) => setKycData({ ...kycData, firstName: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Last Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={kycData.lastName}
+                    onChange={(e) => setKycData({ ...kycData, lastName: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Date of Birth *</label>
+                  <input
+                    type="date"
+                    required
+                    value={kycData.dateOfBirth}
+                    onChange={(e) => setKycData({ ...kycData, dateOfBirth: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Phone Number *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={kycData.phoneNumber}
+                    onChange={(e) => setKycData({ ...kycData, phoneNumber: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+              </div>
 
-            <form onSubmit={handleChannelConnect} className="p-6 md:p-8 space-y-6">
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">Address Information</h3>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Street Address *</label>
+                  <input
+                    type="text"
+                    required
+                    value={kycData.street}
+                    onChange={(e) => setKycData({ ...kycData, street: e.target.value })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">City *</label>
+                    <input
+                      type="text"
+                      required
+                      value={kycData.city}
+                      onChange={(e) => setKycData({ ...kycData, city: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">State *</label>
+                    <input
+                      type="text"
+                      required
+                      value={kycData.state}
+                      onChange={(e) => setKycData({ ...kycData, state: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">ZIP Code *</label>
+                    <input
+                      type="text"
+                      required
+                      value={kycData.zipCode}
+                      onChange={(e) => setKycData({ ...kycData, zipCode: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Country *</label>
+                    <input
+                      type="text"
+                      required
+                      value={kycData.country}
+                      onChange={(e) => setKycData({ ...kycData, country: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">Identity Document</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Document Type *</label>
+                    <select
+                      required
+                      value={kycData.documentType}
+                      onChange={(e) => setKycData({ ...kycData, documentType: e.target.value as any })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    >
+                      <option value="drivers_license">Driver's License</option>
+                      <option value="passport">Passport</option>
+                      <option value="national_id">National ID</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Document Number *</label>
+                    <input
+                      type="text"
+                      required
+                      value={kycData.documentNumber}
+                      onChange={(e) => setKycData({ ...kycData, documentNumber: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Expiry Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={kycData.documentExpiry}
+                      onChange={(e) => setKycData({ ...kycData, documentExpiry: e.target.value })}
+                      className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div>
-                <label htmlFor="youtube-channel-id" className="block text-sm font-medium text-gray-300 mb-2">
-                  YouTube Channel ID
-                </label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Tax ID / SSN (Optional)</label>
                 <input
-                  id="youtube-channel-id"
                   type="text"
-                  required
-                  value={youtubeChannelId}
-                  onChange={(e) => setYoutubeChannelId(e.target.value)}
-                  placeholder="UCxxxxxxxxxxxxxxxxxx"
-                  className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white text-lg focus:border-red-600 focus:outline-none focus:ring-1 focus:ring-red-600"
+                  value={kycData.taxId}
+                  onChange={(e) => setKycData({ ...kycData, taxId: e.target.value })}
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  placeholder="For tax reporting purposes"
                 />
-                <p className="text-sm text-gray-500 mt-2">
-                  Find it at: YouTube Studio → Settings → Channel → Advanced Settings
-                </p>
               </div>
 
-              <div className="bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
-                <h3 className="font-medium text-white mb-3">What happens next?</h3>
-                <ul className="space-y-2 text-sm text-gray-400">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />
-                    <span>We&apos;ll verify you own the channel</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />
-                    <span>Fetch your channel analytics (subscribers, views)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle className="h-4 w-4 text-green-400 mt-0.5 shrink-0" />
-                    <span>You&apos;ll be redirected to Google for authorization</span>
-                  </li>
-                </ul>
-              </div>
-
-              <Button 
-                type="submit" 
-                disabled={submitting}
-                className="youtube-button w-full text-lg py-6 h-auto"
-              >
-                {submitting ? (
+              <Button type="submit" disabled={loading} className="youtube-button w-full text-lg py-6">
+                {loading ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Connecting...
+                    Submitting...
                   </>
                 ) : (
-                  <>
-                    Connect Channel
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </>
+                  'Submit KYC Information'
                 )}
               </Button>
             </form>
           </div>
         )}
 
-        {/* Step 2: Create Offering */}
         {currentStep === 2 && (
           <div className="youtube-card">
-            <div className="p-6 md:p-8 border-b border-zinc-800">
-              <div className="flex items-center gap-3 mb-2">
-                <Sparkles className="h-6 w-6 text-red-600" />
-                <h2 className="text-2xl font-bold text-white">Create Your Offering</h2>
-              </div>
-              <p className="text-gray-400">
-                Set your revenue sharing terms for investors
+            <div className="p-8 border-b border-zinc-800">
+              <h2 className="text-2xl font-bold text-white">Step 2: Connect YouTube Channel</h2>
+              <p className="text-gray-400 text-lg mt-2">
+                Link your YouTube channel to enable revenue sharing
               </p>
             </div>
-
-            <form onSubmit={handleOfferingCreate} className="p-6 md:p-8 space-y-6">
-              {/* Connected Channel Info */}
-              {state.channel && (
-                <div className="bg-green-950/20 border border-green-600/30 rounded-lg p-4">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle className="h-5 w-5 text-green-400" />
-                    <div>
-                      <p className="font-medium text-white">{state.channel.channelName}</p>
-                      <p className="text-sm text-gray-400">
-                        {(state.channel.analytics?.subscriberCount || 0).toLocaleString()} subscribers • {(state.channel.analytics?.videoCount || 0).toLocaleString()} videos
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Basic Info */}
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="offering-title" className="block text-sm font-medium text-gray-300 mb-2">
-                    Offering Title
-                  </label>
-                  <input
-                    id="offering-title"
-                    type="text"
-                    required
-                    value={offeringData.title}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="e.g., Invest in My Gaming Channel"
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="offering-description" className="block text-sm font-medium text-gray-300 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    id="offering-description"
-                    required
-                    value={offeringData.description}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, description: e.target.value }))}
-                    rows={3}
-                    placeholder="Tell investors about your channel and growth plans..."
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none resize-none"
-                  />
-                </div>
+            <form onSubmit={handleChannelConnect} className="p-8 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  YouTube Channel ID *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={youtubeChannelId}
+                  onChange={(e) => setYoutubeChannelId(e.target.value)}
+                  placeholder="UCxxxxxxxxxxxxxxxxxx"
+                  className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                />
+                <p className="text-sm text-gray-500 mt-2">
+                  Find your Channel ID: Go to YouTube Studio → Settings → Channel → Advanced Settings
+                </p>
               </div>
 
-              {/* Key Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label htmlFor="share-percentage" className="block text-sm font-medium text-gray-300 mb-2">
-                    Revenue Share %
-                  </label>
-                  <input
-                    id="share-percentage"
-                    type="number"
-                    required
-                    min="1"
-                    max="50"
-                    value={offeringData.sharePercentage}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, sharePercentage: Number(e.target.value) }))}
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Share of revenue for investors (1-50%)</p>
-                </div>
-
-                <div>
-                  <label htmlFor="duration" className="block text-sm font-medium text-gray-300 mb-2">
-                    Duration (months)
-                  </label>
-                  <input
-                    id="duration"
-                    type="number"
-                    required
-                    min="12"
-                    max="60"
-                    value={offeringData.duration}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, duration: Number(e.target.value) }))}
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">How long investors receive payouts</p>
-                </div>
-
-                <div>
-                  <label htmlFor="price-per-share" className="block text-sm font-medium text-gray-300 mb-2">
-                    Price per Share (₹)
-                  </label>
-                  <input
-                    id="price-per-share"
-                    type="number"
-                    required
-                    min="10"
-                    value={offeringData.pricePerShare}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, pricePerShare: Number(e.target.value) }))}
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="total-shares" className="block text-sm font-medium text-gray-300 mb-2">
-                    Total Shares
-                  </label>
-                  <input
-                    id="total-shares"
-                    type="number"
-                    required
-                    min="100"
-                    value={offeringData.totalShares}
-                    onChange={(e) => setOfferingData(prev => ({ ...prev, totalShares: Number(e.target.value) }))}
-                    className="w-full px-4 py-3 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div className="bg-linear-to-r from-red-950/30 to-zinc-900 border border-red-600/30 rounded-lg p-5">
-                <h3 className="font-semibold text-white mb-3">Offering Summary</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Funding Goal</p>
-                    <p className="text-xl font-bold text-white">
-                      ₹{(offeringData.totalShares * offeringData.pricePerShare).toLocaleString('en-IN')}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Revenue Share</p>
-                    <p className="text-xl font-bold text-white">
-                      {offeringData.sharePercentage}% for {offeringData.duration}mo
-                    </p>
-                  </div>
-                </div>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 space-y-3">
+                <h3 className="font-semibold text-white">Requirements:</h3>
+                <ul className="space-y-2 text-gray-400">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                    <span>Valid YouTube Channel ID</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                    <span>Active YouTube channel</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-400 mt-0.5 shrink-0" />
+                    <span>Good standing with YouTube policies</span>
+                  </li>
+                </ul>
               </div>
 
               <div className="flex gap-4">
@@ -631,25 +592,18 @@ export default function CreatorOnboardPage() {
                   type="button"
                   variant="outline"
                   onClick={() => setCurrentStep(1)}
-                  className="flex-1 border-zinc-700 text-gray-300 hover:bg-zinc-800 hover:text-white py-6"
+                  className="flex-1 border-zinc-700 text-black hover:bg-zinc-800 hover:text-gray-300"
                 >
                   Back
                 </Button>
-                <Button 
-                  type="submit" 
-                  disabled={submitting}
-                  className="youtube-button flex-1 text-lg py-6 h-auto"
-                >
-                  {submitting ? (
+                <Button type="submit" disabled={loading} className="youtube-button flex-1 text-lg py-6">
+                  {loading ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Creating...
+                      Verifying...
                     </>
                   ) : (
-                    <>
-                      Create Offering
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </>
+                    'Verify Channel'
                   )}
                 </Button>
               </div>
@@ -657,42 +611,205 @@ export default function CreatorOnboardPage() {
           </div>
         )}
 
-        {/* Step 3: Success */}
         {currentStep === 3 && (
           <div className="youtube-card">
-            <div className="p-8 md:p-12 text-center space-y-6">
+            <div className="p-8 border-b border-zinc-800">
+              <h2 className="text-2xl font-bold text-white">Step 3: Create Investment Offering</h2>
+              <p className="text-gray-400 text-lg mt-2">
+                Set up your revenue sharing terms for investors
+              </p>
+            </div>
+            <form onSubmit={handleOfferingCreate} className="p-8 space-y-6">
+              {channelData && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6">
+                  <h3 className="font-semibold text-white mb-2">Connected Channel</h3>
+                  <p className="text-gray-400">{channelData.channelName}</p>
+                  {channelData.analytics && (
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Subscribers</p>
+                        <p className="text-lg font-semibold text-white">
+                          {(channelData.analytics.subscriberCount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Total Views</p>
+                        <p className="text-lg font-semibold text-white">
+                          {(channelData.analytics.viewCount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Videos</p>
+                        <p className="text-lg font-semibold text-white">
+                          {(channelData.analytics.videoCount || 0).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Offering Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={offeringData.title}
+                    onChange={(e) => setOfferingData({ ...offeringData, title: e.target.value })}
+                    placeholder="e.g., Revenue Share in My Gaming Channel"
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                  <textarea
+                    required
+                    value={offeringData.description}
+                    onChange={(e) => setOfferingData({ ...offeringData, description: e.target.value })}
+                    rows={4}
+                    placeholder="Describe your channel, content strategy, and growth plans..."
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Revenue Share Percentage * (1-50%)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="50"
+                    value={offeringData.sharePercentage}
+                    onChange={(e) => setOfferingData({ ...offeringData, sharePercentage: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Percentage of YouTube revenue to share with investors
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Duration (months) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="12"
+                    max="60"
+                    value={offeringData.duration}
+                    onChange={(e) => setOfferingData({ ...offeringData, duration: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">How long the revenue share will last</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Total Shares *</label>
+                  <input
+                    type="number"
+                    required
+                    min="100"
+                    value={offeringData.totalShares}
+                    onChange={(e) => setOfferingData({ ...offeringData, totalShares: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Price Per Share (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={offeringData.pricePerShare}
+                    onChange={(e) => setOfferingData({ ...offeringData, pricePerShare: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Minimum Investment (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    min="100"
+                    value={offeringData.minInvestment}
+                    onChange={(e) => setOfferingData({ ...offeringData, minInvestment: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Investment (₹)</label>
+                  <input
+                    type="number"
+                    value={offeringData.maxInvestment}
+                    onChange={(e) => setOfferingData({ ...offeringData, maxInvestment: Number(e.target.value) })}
+                    className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-blue-950/20 border border-blue-600/50 rounded-lg p-6">
+                <h3 className="font-semibold text-blue-400 mb-2">Offering Summary</h3>
+                <div className="space-y-2 text-gray-300">
+                  <p>Total Funding Goal: <span className="font-semibold text-white">
+                    ₹{(offeringData.totalShares * offeringData.pricePerShare).toLocaleString('en-IN')}
+                  </span></p>
+                  <p>Revenue Share: <span className="font-semibold text-white">
+                    {offeringData.sharePercentage}% for {offeringData.duration} months
+                  </span></p>
+                  <p>Investment Range: <span className="font-semibold text-white">
+                    ₹{offeringData.minInvestment.toLocaleString('en-IN')} - ₹{offeringData.maxInvestment.toLocaleString('en-IN')}
+                  </span></p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCurrentStep(2)}
+                  className="flex-1 border-zinc-700 text-white hover:bg-zinc-800"
+                >
+                  Back
+                </Button>
+                <Button type="submit" disabled={loading} className="youtube-button flex-1 text-lg py-6">
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    'Create Offering'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {currentStep === 4 && (
+          <div className="youtube-card">
+            <div className="p-8 text-center space-y-6">
               <div className="w-20 h-20 bg-green-600/20 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle className="h-10 w-10 text-green-400" />
               </div>
-              
-              <div className="space-y-3">
-                <h2 className="text-3xl font-bold text-white">You&apos;re Live! 🎉</h2>
-                <p className="text-lg text-gray-400 max-w-xl mx-auto">
-                  Congratulations! Your offering is <span className="text-green-400 font-semibold">instantly live</span> on the marketplace — no approval needed! Investors can start investing right now.
-                </p>
-              </div>
-
-              <div className="bg-green-950/30 border border-green-600/30 rounded-lg p-4 max-w-md mx-auto">
-                <h3 className="font-medium text-green-400 mb-2">✓ Onboarding Complete</h3>
-                <ul className="text-sm text-gray-300 text-left space-y-2">
-                  <li>• Your offering is <span className="text-green-400">live</span> in the marketplace</li>
-                  <li>• Investors can purchase shares immediately</li>
-                  <li>• Track investments from your creator dashboard</li>
-                  <li>• Complete KYC before your first payout</li>
-                </ul>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+              <h2 className="text-3xl font-bold text-white">Onboarding Complete!</h2>
+              <p className="text-xl text-gray-400 max-w-2xl mx-auto">
+                Your offering has been submitted and is pending admin approval. 
+                You'll receive an email once it's approved and live on the marketplace.
+              </p>
+              <div className="flex gap-4 justify-center pt-6">
                 <Button 
                   onClick={() => router.push('/dashboard/creator')}
-                  className="youtube-button text-lg px-8 py-4 h-auto"
+                  className="youtube-button text-lg px-8 py-6"
                 >
                   Go to Dashboard
                 </Button>
                 <Button 
                   onClick={() => router.push('/marketplace')}
                   variant="outline"
-                  className="border-zinc-700 text-black hover:bg-zinc-800 text-lg px-8 py-4 h-auto"
+                  className="border-zinc-700 text-white hover:bg-zinc-800 text-lg px-8 py-6"
                 >
                   View Marketplace
                 </Button>
@@ -701,55 +818,50 @@ export default function CreatorOnboardPage() {
           </div>
         )}
 
-        {/* Benefits - Show on step 1 and 2 only */}
-        {currentStep < 3 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="youtube-card p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center shrink-0">
-                  <CheckCircle className="h-5 w-5 text-green-400" />
+        {/* Benefits Section */}
+        <div className="youtube-card p-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-white text-center mb-8">
+            Why Creators Choose Our Platform
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-white flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-600/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">Keep Full Control</h3>
-                  <p className="text-sm text-gray-400">Maintain creative freedom and channel ownership</p>
-                </div>
-              </div>
+                Keep Creative Control
+              </h3>
+              <p className="text-gray-400 ml-11">Maintain full ownership and creative freedom of your channel</p>
             </div>
-            <div className="youtube-card p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center shrink-0">
-                  <IndianRupee className="h-5 w-5 text-green-400" />
+            <div className="space-y-3">
+              <h3 className="font-semibold text-white flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-600/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">Upfront Capital</h3>
-                  <p className="text-sm text-gray-400">Get funding now for equipment and growth</p>
-                </div>
-              </div>
+                Upfront Capital
+              </h3>
+              <p className="text-gray-400 ml-11">Get funding now for future growth and equipment</p>
             </div>
-            <div className="youtube-card p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Users className="h-5 w-5 text-green-400" />
+            <div className="space-y-3">
+              <h3 className="font-semibold text-white flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-600/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">Community Investors</h3>
-                  <p className="text-sm text-gray-400">Your fans become invested in your success</p>
-                </div>
-              </div>
+                Fair Revenue Split
+              </h3>
+              <p className="text-gray-400 ml-11">Set your own terms and percentage shares</p>
             </div>
-            <div className="youtube-card p-5">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 bg-green-600/20 rounded-lg flex items-center justify-center shrink-0">
-                  <Sparkles className="h-5 w-5 text-green-400" />
+            <div className="space-y-3">
+              <h3 className="font-semibold text-white flex items-center gap-3">
+                <div className="w-8 h-8 bg-green-600/20 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-400" />
                 </div>
-                <div>
-                  <h3 className="font-semibold text-white">Simple Process</h3>
-                  <p className="text-sm text-gray-400">No complex paperwork or lengthy approvals</p>
-                </div>
-              </div>
+                Transparent Reporting
+              </h3>
+              <p className="text-gray-400 ml-11">Automated revenue tracking and investor updates</p>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

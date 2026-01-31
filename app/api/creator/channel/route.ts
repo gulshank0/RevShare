@@ -100,14 +100,11 @@ export async function POST(request: NextRequest) {
     // Check if the account has YouTube scope
     const hasYouTubeScope = account.scope?.includes('youtube');
     if (!hasYouTubeScope) {
-      // Generate authorization URL for the client to redirect
-      const authUrl = generateYouTubeAuthUrl();
       return NextResponse.json(
         { 
           success: false, 
-          error: 'YouTube channel access not authorized. Please grant YouTube permissions to continue.',
-          requiresReauth: true,
-          authUrl,
+          error: 'YouTube channel access not authorized. Please sign out and sign in again to grant YouTube permissions.',
+          requiresReauth: true
         },
         { status: 403 }
       );
@@ -260,24 +257,4 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// YouTube OAuth scopes needed for channel access
-const YOUTUBE_SCOPES = [
-  'https://www.googleapis.com/auth/youtube.readonly',
-  'https://www.googleapis.com/auth/yt-analytics.readonly',
-];
-
-function generateYouTubeAuthUrl(): string {
-  const params = new URLSearchParams({
-    client_id: process.env.GOOGLE_CLIENT_ID!,
-    redirect_uri: `${process.env.NEXTAUTH_URL}/api/auth/youtube/callback`,
-    response_type: 'code',
-    scope: YOUTUBE_SCOPES.join(' '),
-    access_type: 'offline',
-    prompt: 'consent',
-    include_granted_scopes: 'true',
-  });
-
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }

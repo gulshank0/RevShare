@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Create offering
-    // Auto-approve for development - in production, use 'PENDING_APPROVAL' for admin review
     const offering = await prisma.offering.create({
       data: {
         channelId,
@@ -72,14 +71,14 @@ export async function POST(request: NextRequest) {
         minInvestment,
         maxInvestment,
         duration,
-        status: 'ACTIVE', // Auto-approved for development
+        status: 'PENDING_APPROVAL', // Requires admin approval
       },
     });
 
     return NextResponse.json({
       success: true,
       offering,
-      message: 'Offering created successfully and is now live!',
+      message: 'Offering created successfully. Pending admin approval.',
     });
   } catch (error) {
     console.error('Offering creation error:', error);
