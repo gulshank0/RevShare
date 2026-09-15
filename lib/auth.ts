@@ -58,11 +58,8 @@ export const authOptions: NextAuthOptions = {
       allowDangerousEmailAccountLinking: true,
       authorization: {
         params: {
-          prompt: "consent",
-          access_type: "offline",
+          prompt: "select_account",
           response_type: "code",
-          // Basic OAuth scopes - additional scopes (like YouTube) should be requested
-          // separately when specific features require them
           scope: "openid email profile"
         }
       }
