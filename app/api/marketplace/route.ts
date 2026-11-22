@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
       include: {
         channel: {
           select: {
+            youtubeChannelId: true,
             channelName: true,
             channelUrl: true,
             analytics: true,

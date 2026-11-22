@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,10 +42,10 @@ export default function CreatorOnboardPage() {
     state: '',
     zipCode: '',
     country: '',
-    documentType: 'drivers_license' as 'passport' | 'drivers_license' | 'national_id',
+    documentType: 'driving_license' as 'passport' | 'driving_license' | 'aadhaar' | 'voter_id',
     documentNumber: '',
     documentExpiry: '',
-    taxId: '',
+    panNumber: '',
   });
   const [youtubeChannelId, setYoutubeChannelId] = useState('');
   const [offeringData, setOfferingData] = useState({
@@ -161,15 +161,14 @@ export default function CreatorOnboardPage() {
             street: kycData.street,
             city: kycData.city,
             state: kycData.state,
-            zipCode: kycData.zipCode,
+            pincode: kycData.zipCode,
             country: kycData.country,
           },
-          identityDocument: {
-            type: kycData.documentType,
-            number: kycData.documentNumber,
-            expiryDate: kycData.documentExpiry,
-          },
-          taxId: kycData.taxId,
+          panNumber: kycData.panNumber.toUpperCase(),
+          documentType: kycData.documentType,
+          ...(kycData.documentType === 'aadhaar'
+            ? { aadhaarNumber: kycData.documentNumber }
+            : { documentNumber: kycData.documentNumber }),
         }),
       });
 
@@ -216,6 +215,17 @@ export default function CreatorOnboardPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleYouTubeAuthorization = async () => {
+    await signIn('google', {
+      callbackUrl: '/creator/onboard',
+    }, {
+      prompt: 'consent',
+      access_type: 'offline',
+      ...(session?.user?.email ? { login_hint: session.user.email } : {}),
+      scope: 'openid email profile https://www.googleapis.com/auth/youtube.readonly',
+    });
   };
 
   const handleOfferingCreate = async (e: React.FormEvent) => {
@@ -300,7 +310,7 @@ export default function CreatorOnboardPage() {
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <h1 className="text-4xl font-bold text-white">Sign In Required</h1>
           <p className="text-xl text-gray-400">Please sign in to start your creator onboarding</p>
-          <Button className="youtube-button text-xl px-8 py-3 h-auto" onClick={() => router.push('/auth/signin')}>
+          <Button className="youtube-button text-xl px-8 py-3 h-auto" onClick={() => router.push(`/auth/signin?callbackUrl=${encodeURIComponent('/creator/onboard')}`)}>
             Sign In with Google
           </Button>
         </div>
@@ -490,9 +500,10 @@ export default function CreatorOnboardPage() {
                       onChange={(e) => setKycData({ ...kycData, documentType: e.target.value as any })}
                       className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
                     >
-                      <option value="drivers_license">Driver's License</option>
+                      <option value="driving_license">Driver&apos;s License</option>
                       <option value="passport">Passport</option>
-                      <option value="national_id">National ID</option>
+                      <option value="aadhaar">Aadhaar</option>
+                      <option value="voter_id">Voter ID</option>
                     </select>
                   </div>
                   <div>
@@ -519,13 +530,16 @@ export default function CreatorOnboardPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Tax ID / SSN (Optional)</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">PAN Number *</label>
                 <input
                   type="text"
-                  value={kycData.taxId}
-                  onChange={(e) => setKycData({ ...kycData, taxId: e.target.value })}
+                  required
+                  value={kycData.panNumber}
+                  onChange={(e) => setKycData({ ...kycData, panNumber: e.target.value.toUpperCase() })}
                   className="w-full px-4 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-white focus:border-red-600 focus:outline-none"
-                  placeholder="For tax reporting purposes"
+                  placeholder="ABCDE1234F"
+                  pattern="[A-Za-z]{5}[0-9]{4}[A-Za-z]"
+                  maxLength={10}
                 />
               </div>
 
@@ -585,6 +599,16 @@ export default function CreatorOnboardPage() {
                     <span>Good standing with YouTube policies</span>
                   </li>
                 </ul>
+                <Button
+                  type="button"
+                  onClick={handleYouTubeAuthorization}
+                  className="youtube-button w-full mt-4"
+                >
+                  Grant YouTube Access
+                </Button>
+                <p className="text-sm text-gray-500">
+                  Sign in with Google again to authorize access to your channel. Your normal platform login remains unchanged.
+                </p>
               </div>
 
               <div className="flex gap-4">

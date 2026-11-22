@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     if (!account?.access_token) {
       return NextResponse.json(
-        { success: false, error: 'YouTube authentication required. Please sign out and sign in again to grant YouTube access.' },
+        { success: false, error: 'YouTube access is required. Use the Grant YouTube Access button and try again.' },
         { status: 401 }
       );
     }
@@ -103,7 +103,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          error: 'YouTube channel access not authorized. Please sign out and sign in again to grant YouTube permissions.',
+          error: 'YouTube channel access is not authorized. Use the Grant YouTube Access button and try again.',
           requiresReauth: true
         },
         { status: 403 }
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     if (!accessToken) {
       return NextResponse.json(
-        { success: false, error: 'YouTube authentication expired. Please sign out and sign in again to refresh your access.' },
+        { success: false, error: 'YouTube authentication expired. Use the Grant YouTube Access button to reconnect.' },
         { status: 401 }
       );
     }
@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           { 
             success: false, 
-            error: 'YouTube access not authorized. Please sign out completely and sign in again to grant YouTube channel access.',
+            error: 'YouTube access is not authorized. Use the Grant YouTube Access button and try again.',
             requiresReauth: true
           },
           { status: 403 }

@@ -96,17 +96,14 @@ export class YouTubeService {
   }
 
   async verifyChannelOwnership(userId: string, channelId: string): Promise<boolean> {
-    // Allow anyone with a valid YouTube channel to connect
-    // Simply verify that the channel exists and is accessible
     const response = await this.youtube.channels.list({
       part: ['id', 'snippet'],
-      id: [channelId],
+      mine: true,
     });
 
     const channels = response.data.items || [];
-    
-    // Return true if the channel exists and is valid
-    return channels.length > 0 && channels[0].id === channelId;
+
+    return channels.some(channel => channel.id === channelId);
   }
 
   async getChannelAnalytics(channelId: string) {
