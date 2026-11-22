@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Users, IndianRupee, Play, Filter, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function MarketplacePage() {
+function MarketplacePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [offerings, setOfferings] = useState<any[]>([]);
@@ -261,5 +261,13 @@ export default function MarketplacePage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-zinc-950 flex items-center justify-center text-gray-400">Loading marketplace...</div>}>
+      <MarketplacePageContent />
+    </Suspense>
   );
 }

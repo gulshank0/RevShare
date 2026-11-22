@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
@@ -7,12 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Video, AlertCircle, ArrowLeft, RefreshCw } from 'lucide-react';
 
-export default function AuthError() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
+  const callbackUrl = searchParams.get('callbackUrl') || '/';
 
   const handleRetry = () => {
-    signIn('google', { callbackUrl: '/' });
+    signIn('google', { callbackUrl });
   };
 
   const getErrorDetails = (error: string | null) => {
@@ -25,8 +27,8 @@ export default function AuthError() {
         };
       case 'AccessDenied':
         return {
-          title: 'Access Denied',
-          message: 'You do not have permission to sign in. This app may be in testing mode.',
+          title: 'Google YouTube access is restricted',
+          message: 'The platform login is working, but Google has blocked YouTube access because this OAuth app is still in testing mode. Add this Google account as a test user in Google Cloud, then try again.',
           action: 'Try Again'
         };
       case 'Verification':
@@ -160,5 +162,13 @@ export default function AuthError() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function AuthError() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-zinc-950 text-gray-300">Loading...</div>}>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

@@ -7,6 +7,7 @@ import {
   Shield, 
   LayoutDashboard, 
   Wallet, 
+  ClipboardCheck,
   ChevronRight,
   Loader2,
   AlertTriangle
@@ -55,6 +56,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/kyc', label: 'KYC Management', icon: Shield },
+    { href: '/admin/offerings', label: 'Offering Review', icon: ClipboardCheck },
     { href: '/admin/withdrawals', label: 'Withdrawals', icon: Wallet },
   ];
 
